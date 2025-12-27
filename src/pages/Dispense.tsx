@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Warehouse, Package, Loader2 } from "lucide-react";
+import { Warehouse, Package, Loader2, Cpu } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { AddDispensaDialog } from '@/components/AddDispensaDialog';
@@ -15,9 +16,11 @@ interface Dispensa {
   products_count: number | null;
   created_at: string;
   updated_at: string;
+  scanners_count: number;
 }
 
 const Dispense = () => {
+  const navigate = useNavigate();
   const [dispense, setDispense] = useState<Dispensa[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
@@ -26,13 +29,34 @@ const Dispense = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      // Fetch dispense with scanner count
+      const { data: dispenseData, error: dispenseError } = await supabase
         .from('dispense')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setDispense(data || []);
+      if (dispenseError) throw dispenseError;
+
+      // Fetch scanners count per dispensa
+      const { data: scanners, error: scannersError } = await supabase
+        .from('scanners')
+        .select('dispensa_id');
+
+      if (scannersError) throw scannersError;
+
+      const scannersCount = scanners?.reduce((acc: Record<string, number>, s) => {
+        if (s.dispensa_id) {
+          acc[s.dispensa_id] = (acc[s.dispensa_id] || 0) + 1;
+        }
+        return acc;
+      }, {}) || {};
+
+      setDispense(
+        (dispenseData || []).map((d) => ({
+          ...d,
+          scanners_count: scannersCount[d.id] || 0,
+        }))
+      );
     } catch (error) {
       console.error('Error fetching dispense:', error);
     } finally {
@@ -87,7 +111,7 @@ const Dispense = () => {
         <div>
           <h1 className="text-3xl font-bold mb-2">Dispense</h1>
           <p className="text-muted-foreground">
-            Visualizza tutte le location di stoccaggio
+            Gestisci le tue location di stoccaggio e i dispositivi assegnati
           </p>
         </div>
         <AddDispensaDialog onDispensaAdded={fetchDispense} />
@@ -101,7 +125,7 @@ const Dispense = () => {
             </div>
             <h3 className="text-lg font-semibold mb-2">Nessuna dispensa</h3>
             <p className="text-muted-foreground text-center max-w-sm mb-4">
-              Inizia aggiungendo la tua prima dispensa per organizzare i tuoi prodotti
+              Inizia creando la tua prima dispensa per organizzare i prodotti e assegnare gli scanner
             </p>
             <AddDispensaDialog onDispensaAdded={fetchDispense} />
           </CardContent>
@@ -112,6 +136,7 @@ const Dispense = () => {
             <Card
               key={dispensa.id}
               className="hover:shadow-glow transition-all cursor-pointer group animate-fade-in"
+              onClick={() => navigate(`/dispense/${dispensa.id}`)}
             >
               <CardHeader>
                 <div className="flex items-start justify-between">
@@ -132,12 +157,21 @@ const Dispense = () => {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Package className="h-4 w-4" />
                     <span className="text-sm">Prodotti</span>
+                    <span className="ml-auto text-lg font-bold text-foreground">
+                      {dispensa.products_count || 0}
+                    </span>
                   </div>
-                  <span className="text-2xl font-bold">{dispensa.products_count || 0}</span>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Cpu className="h-4 w-4" />
+                    <span className="text-sm">Scanner</span>
+                    <span className="ml-auto text-lg font-bold text-foreground">
+                      {dispensa.scanners_count}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="pt-3 border-t text-sm text-muted-foreground">

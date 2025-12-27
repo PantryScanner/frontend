@@ -3,8 +3,6 @@ import {
   LayoutDashboard, 
   Package, 
   Warehouse, 
-  BarChart3, 
-  ShoppingCart, 
   Cpu, 
   Settings,
   LogOut
@@ -26,11 +24,9 @@ import { Button } from "@/components/ui/button";
 
 const menuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Inventario", url: "/inventario", icon: Package },
   { title: "Dispense", url: "/dispense", icon: Warehouse },
-  { title: "Grafici", url: "/grafici", icon: BarChart3 },
-  { title: "Lista della spesa", url: "/lista-spesa", icon: ShoppingCart },
   { title: "Dispositivi", url: "/dispositivi", icon: Cpu },
+  { title: "Inventario", url: "/inventario", icon: Package },
   { title: "Impostazioni", url: "/impostazioni", icon: Settings },
 ];
 

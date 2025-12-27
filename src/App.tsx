@@ -13,6 +13,9 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Inventario from "./pages/Inventario";
 import Dispense from "./pages/Dispense";
+import DispensaDetail from "./pages/DispensaDetail";
+import ProductDetail from "./pages/ProductDetail";
+import Dispositivi from "./pages/Dispositivi";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,25 +48,22 @@ const App = () => (
             
             {/* Protected routes with layout */}
             <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <Dashboard />
-                </AppLayout>
-              </ProtectedRoute>
+              <ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>
             } />
             <Route path="/inventario" element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <Inventario />
-                </AppLayout>
-              </ProtectedRoute>
+              <ProtectedRoute><AppLayout><Inventario /></AppLayout></ProtectedRoute>
+            } />
+            <Route path="/prodotti/:id" element={
+              <ProtectedRoute><AppLayout><ProductDetail /></AppLayout></ProtectedRoute>
             } />
             <Route path="/dispense" element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <Dispense />
-                </AppLayout>
-              </ProtectedRoute>
+              <ProtectedRoute><AppLayout><Dispense /></AppLayout></ProtectedRoute>
+            } />
+            <Route path="/dispense/:id" element={
+              <ProtectedRoute><AppLayout><DispensaDetail /></AppLayout></ProtectedRoute>
+            } />
+            <Route path="/dispositivi" element={
+              <ProtectedRoute><AppLayout><Dispositivi /></AppLayout></ProtectedRoute>
             } />
             
             {/* Catch-all route */}
