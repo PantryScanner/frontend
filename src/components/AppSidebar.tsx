@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, 
   Package, 
@@ -6,7 +6,8 @@ import {
   BarChart3, 
   ShoppingCart, 
   Cpu, 
-  Settings 
+  Settings,
+  LogOut
 } from "lucide-react";
 import {
   Sidebar,
@@ -17,11 +18,14 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 
 const menuItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Inventario", url: "/inventario", icon: Package },
   { title: "Dispense", url: "/dispense", icon: Warehouse },
   { title: "Grafici", url: "/grafici", icon: BarChart3 },
@@ -32,14 +36,21 @@ const menuItems = [
 
 export function AppSidebar() {
   const { state } = useSidebar();
+  const { signOut, user } = useAuth();
+  const navigate = useNavigate();
   const isCollapsed = state === "collapsed";
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/');
+  };
 
   return (
     <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-lg font-bold mb-4 px-4">
-            {!isCollapsed && "ScorteAI"}
+            {!isCollapsed && "StockManager"}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -48,7 +59,6 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild>
                     <NavLink 
                       to={item.url} 
-                      end={item.url === "/"}
                       className={({ isActive }) =>
                         `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                           isActive
@@ -67,6 +77,26 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      
+      <SidebarFooter className="p-4 border-t">
+        {user && (
+          <div className="space-y-3">
+            {!isCollapsed && (
+              <div className="px-2">
+                <p className="text-sm font-medium truncate">{user.email}</p>
+              </div>
+            )}
+            <Button 
+              variant="ghost" 
+              className={`w-full justify-start gap-3 ${isCollapsed ? 'px-2' : ''}`}
+              onClick={handleLogout}
+            >
+              <LogOut className="h-5 w-5" />
+              {!isCollapsed && "Esci"}
+            </Button>
+          </div>
+        )}
+      </SidebarFooter>
     </Sidebar>
   );
 }
