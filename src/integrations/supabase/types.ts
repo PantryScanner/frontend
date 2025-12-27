@@ -50,6 +50,96 @@ export type Database = {
         }
         Relationships: []
       }
+      dispense_products: {
+        Row: {
+          created_at: string
+          dispensa_id: string
+          id: string
+          last_scanned_at: string | null
+          product_id: string
+          quantity: number
+          threshold: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dispensa_id: string
+          id?: string
+          last_scanned_at?: string | null
+          product_id: string
+          quantity?: number
+          threshold?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dispensa_id?: string
+          id?: string
+          last_scanned_at?: string | null
+          product_id?: string
+          quantity?: number
+          threshold?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispense_products_dispensa_id_fkey"
+            columns: ["dispensa_id"]
+            isOneToOne: false
+            referencedRelation: "dispense"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispense_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          barcode: string | null
+          brand: string | null
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          unit: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          barcode?: string | null
+          brand?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          unit?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          barcode?: string | null
+          brand?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          unit?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -76,6 +166,108 @@ export type Database = {
           username?: string | null
         }
         Relationships: []
+      }
+      scan_logs: {
+        Row: {
+          action: string
+          barcode: string | null
+          created_at: string
+          dispensa_id: string
+          id: string
+          product_id: string | null
+          quantity: number
+          scanner_id: string
+        }
+        Insert: {
+          action: string
+          barcode?: string | null
+          created_at?: string
+          dispensa_id: string
+          id?: string
+          product_id?: string | null
+          quantity?: number
+          scanner_id: string
+        }
+        Update: {
+          action?: string
+          barcode?: string | null
+          created_at?: string
+          dispensa_id?: string
+          id?: string
+          product_id?: string | null
+          quantity?: number
+          scanner_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scan_logs_dispensa_id_fkey"
+            columns: ["dispensa_id"]
+            isOneToOne: false
+            referencedRelation: "dispense"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scan_logs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scan_logs_scanner_id_fkey"
+            columns: ["scanner_id"]
+            isOneToOne: false
+            referencedRelation: "scanners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scanners: {
+        Row: {
+          created_at: string
+          dispensa_id: string | null
+          id: string
+          last_seen_at: string | null
+          name: string
+          qr_code: string
+          serial_number: string
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dispensa_id?: string | null
+          id?: string
+          last_seen_at?: string | null
+          name: string
+          qr_code: string
+          serial_number: string
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dispensa_id?: string | null
+          id?: string
+          last_seen_at?: string | null
+          name?: string
+          qr_code?: string
+          serial_number?: string
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scanners_dispensa_id_fkey"
+            columns: ["dispensa_id"]
+            isOneToOne: false
+            referencedRelation: "dispense"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

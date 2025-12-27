@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,92 +19,249 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Filter } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Search, Filter, Plus, Package, Loader2, Eye } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
-const mockProducts = [
-  {
-    id: 1,
-    name: "Pasta Barilla 500g",
-    category: "Pasta",
-    location: "Dispensa A",
-    quantity: 12,
-    threshold: 5,
-    lastUpdate: "2025-01-15 10:34",
-  },
-  {
-    id: 2,
-    name: "Olio EVO 1L",
-    category: "Condimenti",
-    location: "Dispensa B",
-    quantity: 8,
-    threshold: 3,
-    lastUpdate: "2025-01-15 10:12",
-  },
-  {
-    id: 3,
-    name: "Pomodori pelati",
-    category: "Conserve",
-    location: "Dispensa A",
-    quantity: 2,
-    threshold: 4,
-    lastUpdate: "2025-01-15 09:45",
-  },
-  {
-    id: 4,
-    name: "Caffè Lavazza 250g",
-    category: "Bevande",
-    location: "Dispensa A",
-    quantity: 6,
-    threshold: 2,
-    lastUpdate: "2025-01-15 09:30",
-  },
-  {
-    id: 5,
-    name: "Zucchero 1kg",
-    category: "Dolci",
-    location: "Dispensa B",
-    quantity: 4,
-    threshold: 2,
-    lastUpdate: "2025-01-15 09:15",
-  },
-];
+interface Product {
+  id: string;
+  name: string;
+  barcode: string | null;
+  category: string | null;
+  brand: string | null;
+  unit: string | null;
+  created_at: string;
+  total_quantity: number;
+  locations: number;
+}
 
 const Inventario = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [categories, setCategories] = useState<string[]>([]);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newProduct, setNewProduct] = useState({
+    name: "",
+    barcode: "",
+    category: "",
+    brand: "",
+    unit: "pz",
+  });
 
-  const getStatusBadge = (quantity: number, threshold: number) => {
-    if (quantity === 0) {
-      return <Badge variant="destructive">Esaurito</Badge>;
+  useEffect(() => {
+    if (user) fetchProducts();
+  }, [user]);
+
+  const fetchProducts = async () => {
+    try {
+      // Fetch products with their quantities in dispense
+      const { data: productsData, error } = await supabase
+        .from("products")
+        .select(`
+          *,
+          dispense_products (
+            quantity,
+            dispensa_id
+          )
+        `)
+        .order("name");
+
+      if (error) throw error;
+
+      const processedProducts = (productsData || []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        barcode: p.barcode,
+        category: p.category,
+        brand: p.brand,
+        unit: p.unit,
+        created_at: p.created_at,
+        total_quantity: p.dispense_products?.reduce((sum: number, dp: any) => sum + dp.quantity, 0) || 0,
+        locations: p.dispense_products?.length || 0,
+      }));
+
+      setProducts(processedProducts);
+
+      // Extract unique categories
+      const uniqueCategories = [...new Set(
+        processedProducts
+          .map((p: Product) => p.category)
+          .filter((c: string | null): c is string => !!c)
+      )];
+      setCategories(uniqueCategories);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      toast.error("Errore nel caricamento dei prodotti");
+    } finally {
+      setIsLoading(false);
     }
-    if (quantity <= threshold) {
-      return <Badge variant="warning">Sotto soglia</Badge>;
-    }
-    return <Badge variant="success">Disponibile</Badge>;
   };
 
-  const filteredProducts = mockProducts.filter((product) => {
-    const matchesSearch = product.name
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
+  const handleAddProduct = async () => {
+    if (!user || !newProduct.name) {
+      toast.error("Inserisci un nome per il prodotto");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from("products").insert({
+        user_id: user.id,
+        name: newProduct.name,
+        barcode: newProduct.barcode || null,
+        category: newProduct.category || null,
+        brand: newProduct.brand || null,
+        unit: newProduct.unit || "pz",
+      });
+
+      if (error) throw error;
+
+      toast.success("Prodotto aggiunto con successo");
+      setNewProduct({ name: "", barcode: "", category: "", brand: "", unit: "pz" });
+      setIsAddDialogOpen(false);
+      fetchProducts();
+    } catch (error: any) {
+      console.error("Error adding product:", error);
+      if (error.code === "23505") {
+        toast.error("Un prodotto con questo codice a barre esiste già");
+      } else {
+        toast.error("Errore nell'aggiunta del prodotto");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch =
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.barcode?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.brand?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory =
       categoryFilter === "all" || product.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Inventario</h1>
-        <p className="text-muted-foreground">
-          Gestisci tutti i prodotti rilevati
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Inventario</h1>
+          <p className="text-muted-foreground">
+            Gestisci tutti i prodotti tracciati dal sistema
+          </p>
+        </div>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              Aggiungi Prodotto
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Nuovo Prodotto</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome prodotto *</Label>
+                <Input
+                  id="name"
+                  placeholder="es. Pasta Barilla 500g"
+                  value={newProduct.name}
+                  onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="barcode">Codice a barre</Label>
+                  <Input
+                    id="barcode"
+                    placeholder="es. 8076800195057"
+                    value={newProduct.barcode}
+                    onChange={(e) => setNewProduct({ ...newProduct, barcode: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="category">Categoria</Label>
+                  <Input
+                    id="category"
+                    placeholder="es. Pasta"
+                    value={newProduct.category}
+                    onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="brand">Brand</Label>
+                  <Input
+                    id="brand"
+                    placeholder="es. Barilla"
+                    value={newProduct.brand}
+                    onChange={(e) => setNewProduct({ ...newProduct, brand: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="unit">Unità</Label>
+                  <Select
+                    value={newProduct.unit}
+                    onValueChange={(value) => setNewProduct({ ...newProduct, unit: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover">
+                      <SelectItem value="pz">Pezzi (pz)</SelectItem>
+                      <SelectItem value="kg">Chilogrammi (kg)</SelectItem>
+                      <SelectItem value="g">Grammi (g)</SelectItem>
+                      <SelectItem value="l">Litri (l)</SelectItem>
+                      <SelectItem value="ml">Millilitri (ml)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Button onClick={handleAddProduct} disabled={isSubmitting} className="w-full">
+                {isSubmitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Aggiungi Prodotto"
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <CardTitle>Prodotti</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary" />
+              Prodotti ({filteredProducts.length})
+            </CardTitle>
             <div className="flex gap-3 w-full sm:w-auto">
               <div className="relative flex-1 sm:flex-initial sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -121,59 +279,86 @@ const Inventario = () => {
                 </SelectTrigger>
                 <SelectContent className="bg-popover">
                   <SelectItem value="all">Tutte</SelectItem>
-                  <SelectItem value="Pasta">Pasta</SelectItem>
-                  <SelectItem value="Condimenti">Condimenti</SelectItem>
-                  <SelectItem value="Conserve">Conserve</SelectItem>
-                  <SelectItem value="Bevande">Bevande</SelectItem>
-                  <SelectItem value="Dolci">Dolci</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Prodotto</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Posizione</TableHead>
-                  <TableHead className="text-center">Quantità</TableHead>
-                  <TableHead className="text-center">Soglia</TableHead>
-                  <TableHead>Stato</TableHead>
-                  <TableHead>Ultimo aggiornamento</TableHead>
-                  <TableHead className="text-right">Azioni</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProducts.map((product) => (
-                  <TableRow key={product.id} className="hover:bg-muted/50">
-                    <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell>{product.category}</TableCell>
-                    <TableCell>{product.location}</TableCell>
-                    <TableCell className="text-center font-bold">
-                      {product.quantity}
-                    </TableCell>
-                    <TableCell className="text-center text-muted-foreground">
-                      {product.threshold}
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(product.quantity, product.threshold)}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {product.lastUpdate}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm">
-                        Modifica
-                      </Button>
-                    </TableCell>
+          {products.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <h3 className="text-lg font-medium mb-2">Nessun prodotto</h3>
+              <p className="mb-4">Inizia aggiungendo il tuo primo prodotto o scansionandolo con un dispositivo</p>
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Prodotto</TableHead>
+                    <TableHead>Codice</TableHead>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead>Brand</TableHead>
+                    <TableHead className="text-center">Quantità Totale</TableHead>
+                    <TableHead className="text-center">Dispense</TableHead>
+                    <TableHead className="text-right">Azioni</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {filteredProducts.map((product) => (
+                    <TableRow
+                      key={product.id}
+                      className="hover:bg-muted/50 cursor-pointer"
+                      onClick={() => navigate(`/prodotti/${product.id}`)}
+                    >
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell>
+                        <code className="text-xs text-muted-foreground">
+                          {product.barcode || "—"}
+                        </code>
+                      </TableCell>
+                      <TableCell>
+                        {product.category ? (
+                          <Badge variant="secondary">{product.category}</Badge>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {product.brand || "—"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className="font-bold">{product.total_quantity}</span>
+                        <span className="text-muted-foreground ml-1">{product.unit}</span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="outline">{product.locations}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/prodotti/${product.id}`);
+                          }}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Dettagli
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
