@@ -16,35 +16,32 @@ export type Database = {
     Tables: {
       dispense: {
         Row: {
+          color: string | null
           created_at: string
-          icon: string | null
           id: string
           location: string | null
           name: string
           products_count: number | null
-          status: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          color?: string | null
           created_at?: string
-          icon?: string | null
           id?: string
           location?: string | null
           name: string
           products_count?: number | null
-          status?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          color?: string | null
           created_at?: string
-          icon?: string | null
           id?: string
           location?: string | null
           name?: string
           products_count?: number | null
-          status?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -101,40 +98,28 @@ export type Database = {
       products: {
         Row: {
           barcode: string | null
-          brand: string | null
           category: string | null
           created_at: string
-          description: string | null
           id: string
-          image_url: string | null
-          name: string
-          unit: string | null
+          name: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           barcode?: string | null
-          brand?: string | null
           category?: string | null
           created_at?: string
-          description?: string | null
           id?: string
-          image_url?: string | null
-          name: string
-          unit?: string | null
+          name?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           barcode?: string | null
-          brand?: string | null
           category?: string | null
           created_at?: string
-          description?: string | null
           id?: string
-          image_url?: string | null
-          name?: string
-          unit?: string | null
+          name?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -142,7 +127,6 @@ export type Database = {
       }
       profiles: {
         Row: {
-          avatar_url: string | null
           created_at: string
           id: string
           updated_at: string
@@ -150,7 +134,6 @@ export type Database = {
           username: string | null
         }
         Insert: {
-          avatar_url?: string | null
           created_at?: string
           id?: string
           updated_at?: string
@@ -158,7 +141,6 @@ export type Database = {
           username?: string | null
         }
         Update: {
-          avatar_url?: string | null
           created_at?: string
           id?: string
           updated_at?: string
@@ -229,7 +211,6 @@ export type Database = {
           id: string
           last_seen_at: string | null
           name: string
-          qr_code: string
           serial_number: string
           status: string | null
           updated_at: string
@@ -241,7 +222,6 @@ export type Database = {
           id?: string
           last_seen_at?: string | null
           name: string
-          qr_code: string
           serial_number: string
           status?: string | null
           updated_at?: string
@@ -253,7 +233,6 @@ export type Database = {
           id?: string
           last_seen_at?: string | null
           name?: string
-          qr_code?: string
           serial_number?: string
           status?: string | null
           updated_at?: string

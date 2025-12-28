@@ -5,14 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   ArrowLeft,
   Package,
   Barcode,
   Tag,
-  Building2,
-  Scale,
   Edit,
   Save,
   X,
@@ -27,13 +24,9 @@ import { toast } from "sonner";
 
 interface Product {
   id: string;
-  name: string;
+  name: string | null;
   barcode: string | null;
-  description: string | null;
   category: string | null;
-  brand: string | null;
-  image_url: string | null;
-  unit: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -72,7 +65,6 @@ const ProductDetail = () => {
     if (!id) return;
 
     try {
-      // Fetch product details
       const { data: productData, error: productError } = await supabase
         .from("products")
         .select("*")
@@ -89,7 +81,6 @@ const ProductDetail = () => {
       setProduct(productData);
       setEditedProduct(productData);
 
-      // Fetch locations where this product is stored
       const { data: locationsData, error: locationsError } = await supabase
         .from("dispense_products")
         .select(`
@@ -111,7 +102,6 @@ const ProductDetail = () => {
         );
       }
 
-      // Fetch recent scan logs for this product
       const { data: logsData, error: logsError } = await supabase
         .from("scan_logs")
         .select(`
@@ -152,12 +142,9 @@ const ProductDetail = () => {
       const { error } = await supabase
         .from("products")
         .update({
-          name: editedProduct.name,
-          description: editedProduct.description,
+          name: editedProduct.name || null,
           category: editedProduct.category,
-          brand: editedProduct.brand,
           barcode: editedProduct.barcode,
-          unit: editedProduct.unit,
         })
         .eq("id", product.id);
 
@@ -208,10 +195,10 @@ const ProductDetail = () => {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold">{product.name}</h1>
-          {product.brand && (
-            <p className="text-muted-foreground">{product.brand}</p>
-          )}
+          <h1 className="text-3xl font-bold">
+            {product.name || <span className="text-muted-foreground italic">Senza nome</span>}
+          </h1>
+          <code className="text-sm text-muted-foreground">{product.barcode}</code>
         </div>
         {!isEditing ? (
           <Button variant="outline" onClick={() => setIsEditing(true)}>
@@ -252,20 +239,11 @@ const ProductDetail = () => {
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Nome</Label>
+                    <Label>Nome (opzionale)</Label>
                     <Input
                       value={editedProduct.name || ""}
                       onChange={(e) =>
                         setEditedProduct({ ...editedProduct, name: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Brand</Label>
-                    <Input
-                      value={editedProduct.brand || ""}
-                      onChange={(e) =>
-                        setEditedProduct({ ...editedProduct, brand: e.target.value })
                       }
                     />
                   </div>
@@ -278,34 +256,16 @@ const ProductDetail = () => {
                       }
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 col-span-2">
                     <Label>Codice a barre</Label>
                     <Input
                       value={editedProduct.barcode || ""}
                       onChange={(e) =>
-                        setEditedProduct({ ...editedProduct, barcode: e.target.value })
+                        setEditedProduct({ ...editedProduct, barcode: e.target.value.replace(/\D/g, '') })
                       }
+                      inputMode="numeric"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Unità</Label>
-                    <Input
-                      value={editedProduct.unit || ""}
-                      onChange={(e) =>
-                        setEditedProduct({ ...editedProduct, unit: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Descrizione</Label>
-                  <Textarea
-                    value={editedProduct.description || ""}
-                    onChange={(e) =>
-                      setEditedProduct({ ...editedProduct, description: e.target.value })
-                    }
-                    rows={3}
-                  />
                 </div>
               </>
             ) : (
@@ -314,7 +274,7 @@ const ProductDetail = () => {
                   <Barcode className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
                     <p className="text-sm text-muted-foreground">Codice a barre</p>
-                    <p className="font-mono">{product.barcode || "—"}</p>
+                    <code className="font-mono">{product.barcode || "—"}</code>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
@@ -324,26 +284,6 @@ const ProductDetail = () => {
                     <p>{product.category || "—"}</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3">
-                  <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Brand</p>
-                    <p>{product.brand || "—"}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Scale className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Unità</p>
-                    <p>{product.unit || "pz"}</p>
-                  </div>
-                </div>
-                {product.description && (
-                  <div className="col-span-2">
-                    <p className="text-sm text-muted-foreground mb-1">Descrizione</p>
-                    <p className="text-sm">{product.description}</p>
-                  </div>
-                )}
               </div>
             )}
           </CardContent>
@@ -357,9 +297,7 @@ const ProductDetail = () => {
           <CardContent>
             <div className="text-5xl font-bold text-primary mb-4">
               {getTotalQuantity()}
-              <span className="text-lg text-muted-foreground ml-2">
-                {product.unit || "pz"}
-              </span>
+              <span className="text-lg text-muted-foreground ml-2">pz</span>
             </div>
             <p className="text-sm text-muted-foreground">
               Distribuito in {locations.length} dispens{locations.length === 1 ? "a" : "e"}
@@ -395,7 +333,7 @@ const ProductDetail = () => {
                           : "success"
                       }
                     >
-                      {loc.quantity} {product.unit || "pz"}
+                      {loc.quantity} pz
                     </Badge>
                   </div>
                   <div className="text-sm text-muted-foreground">
@@ -440,8 +378,7 @@ const ProductDetail = () => {
                   )}
                   <div className="flex-1">
                     <p className="font-medium">
-                      {log.action === "add" ? "Aggiunto" : "Rimosso"} {log.quantity}{" "}
-                      {product.unit || "pz"}
+                      {log.action === "add" ? "Aggiunto" : "Rimosso"} {log.quantity} pz
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {log.dispensa_name}
