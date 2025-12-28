@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Warehouse, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,18 +12,24 @@ interface AddDispensaDialogProps {
   onDispensaAdded: () => void;
 }
 
-const iconOptions = [
-  { value: 'warehouse', label: 'Magazzino' },
-  { value: 'package', label: 'Scatola' },
-  { value: 'refrigerator', label: 'Frigo' },
-  { value: 'home', label: 'Casa' },
+const colorOptions = [
+  { value: '#6366f1', label: 'Indaco' },
+  { value: '#8b5cf6', label: 'Viola' },
+  { value: '#ec4899', label: 'Rosa' },
+  { value: '#ef4444', label: 'Rosso' },
+  { value: '#f97316', label: 'Arancione' },
+  { value: '#eab308', label: 'Giallo' },
+  { value: '#22c55e', label: 'Verde' },
+  { value: '#14b8a6', label: 'Teal' },
+  { value: '#3b82f6', label: 'Blu' },
+  { value: '#64748b', label: 'Grigio' },
 ];
 
 export const AddDispensaDialog = ({ onDispensaAdded }: AddDispensaDialogProps) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
-  const [icon, setIcon] = useState('warehouse');
+  const [color, setColor] = useState('#6366f1');
   const [isLoading, setIsLoading] = useState(false);
 
   const { user } = useAuth();
@@ -57,9 +62,8 @@ export const AddDispensaDialog = ({ onDispensaAdded }: AddDispensaDialogProps) =
       const { error } = await supabase.from('dispense').insert({
         name: name.trim(),
         location: location.trim() || null,
-        icon,
+        color,
         user_id: user.id,
-        status: 'online',
         products_count: 0
       });
 
@@ -72,7 +76,7 @@ export const AddDispensaDialog = ({ onDispensaAdded }: AddDispensaDialogProps) =
 
       setName('');
       setLocation('');
-      setIcon('warehouse');
+      setColor('#6366f1');
       setOpen(false);
       onDispensaAdded();
     } catch (error: any) {
@@ -128,19 +132,23 @@ export const AddDispensaDialog = ({ onDispensaAdded }: AddDispensaDialogProps) =
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="icon">Icona</Label>
-            <Select value={icon} onValueChange={setIcon}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {iconOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Colore</Label>
+            <div className="flex flex-wrap gap-2">
+              {colorOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setColor(opt.value)}
+                  className={`h-8 w-8 rounded-full transition-all ${
+                    color === opt.value 
+                      ? 'ring-2 ring-offset-2 ring-primary scale-110' 
+                      : 'hover:scale-105'
+                  }`}
+                  style={{ backgroundColor: opt.value }}
+                  title={opt.label}
+                />
+              ))}
+            </div>
           </div>
 
           <div className="flex gap-3 pt-4">

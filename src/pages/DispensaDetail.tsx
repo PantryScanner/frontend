@@ -39,7 +39,7 @@ interface Dispensa {
   id: string;
   name: string;
   location: string | null;
-  status: string | null;
+  color: string | null;
   products_count: number | null;
   created_at: string;
 }
@@ -49,14 +49,13 @@ interface Scanner {
   name: string;
   serial_number: string;
   status: string | null;
-  qr_code: string;
   last_seen_at: string | null;
 }
 
 interface ProductInDispensa {
   id: string;
   product_id: string;
-  product_name: string;
+  product_name: string | null;
   quantity: number;
   threshold: number;
   last_scanned_at: string | null;
@@ -81,7 +80,6 @@ const DispensaDetail = () => {
     if (!id) return;
 
     try {
-      // Fetch dispensa details
       const { data: dispensaData, error: dispensaError } = await supabase
         .from("dispense")
         .select("*")
@@ -97,7 +95,6 @@ const DispensaDetail = () => {
 
       setDispensa(dispensaData);
 
-      // Fetch assigned scanners
       const { data: scannersData, error: scannersError } = await supabase
         .from("scanners")
         .select("*")
@@ -107,7 +104,6 @@ const DispensaDetail = () => {
         setScanners(scannersData || []);
       }
 
-      // Fetch products in this dispensa
       const { data: productsData, error: productsError } = await supabase
         .from("dispense_products")
         .select(`
@@ -125,7 +121,7 @@ const DispensaDetail = () => {
           productsData.map((p: any) => ({
             id: p.id,
             product_id: p.product_id,
-            product_name: p.products?.name || "Prodotto sconosciuto",
+            product_name: p.products?.name || null,
             quantity: p.quantity,
             threshold: p.threshold,
             last_scanned_at: p.last_scanned_at,
@@ -171,7 +167,7 @@ const DispensaDetail = () => {
   };
 
   const filteredProducts = products.filter((p) =>
-    p.product_name.toLowerCase().includes(searchQuery.toLowerCase())
+    (p.product_name || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (isLoading) {
@@ -193,8 +189,14 @@ const DispensaDetail = () => {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Warehouse className="h-6 w-6 text-primary" />
+            <div 
+              className="h-12 w-12 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: `${dispensa.color || '#6366f1'}20` }}
+            >
+              <Warehouse 
+                className="h-6 w-6" 
+                style={{ color: dispensa.color || '#6366f1' }}
+              />
             </div>
             <div>
               <h1 className="text-3xl font-bold">{dispensa.name}</h1>
@@ -221,8 +223,14 @@ const DispensaDetail = () => {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Package className="h-6 w-6 text-primary" />
+              <div 
+                className="h-12 w-12 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: `${dispensa.color || '#6366f1'}20` }}
+              >
+                <Package 
+                  className="h-6 w-6" 
+                  style={{ color: dispensa.color || '#6366f1' }}
+                />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Prodotti</p>
@@ -234,8 +242,14 @@ const DispensaDetail = () => {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Cpu className="h-6 w-6 text-primary" />
+              <div 
+                className="h-12 w-12 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: `${dispensa.color || '#6366f1'}20` }}
+              >
+                <Cpu 
+                  className="h-6 w-6" 
+                  style={{ color: dispensa.color || '#6366f1' }}
+                />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Scanner assegnati</p>
@@ -366,7 +380,9 @@ const DispensaDetail = () => {
                 <TableBody>
                   {filteredProducts.map((product) => (
                     <TableRow key={product.id} className="hover:bg-muted/50">
-                      <TableCell className="font-medium">{product.product_name}</TableCell>
+                      <TableCell className="font-medium">
+                        {product.product_name || <span className="text-muted-foreground italic">Senza nome</span>}
+                      </TableCell>
                       <TableCell className="text-center font-bold">
                         {product.quantity}
                       </TableCell>
@@ -410,7 +426,7 @@ const DispensaDetail = () => {
             <div className="flex flex-col items-center space-y-4 py-4">
               <div className="p-4 bg-background rounded-xl border shadow-lg">
                 <QRCodeSVG
-                  value={selectedScanner.qr_code}
+                  value={selectedScanner.serial_number}
                   size={200}
                   level="H"
                   includeMargin

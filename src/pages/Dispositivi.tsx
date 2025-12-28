@@ -29,7 +29,6 @@ interface Scanner {
   serial_number: string;
   name: string;
   status: string | null;
-  qr_code: string;
   dispensa_id: string | null;
   last_seen_at: string | null;
   created_at: string;
@@ -78,11 +77,19 @@ const Dispositivi = () => {
   }, [user]);
 
   const generateSerialNumber = () => {
-    return `SCN-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-  };
-
-  const generateQrCode = () => {
-    return `stockmgr://${crypto.randomUUID()}`;
+    // Format: SCN-XXXXXXXX-XXXX (8 alphanumeric + 4 alphanumeric)
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let part1 = '';
+    let part2 = '';
+    
+    for (let i = 0; i < 8; i++) {
+      part1 += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    for (let i = 0; i < 4; i++) {
+      part2 += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    
+    return `SCN-${part1}-${part2}`;
   };
 
   const handleAddScanner = async () => {
@@ -94,13 +101,11 @@ const Dispositivi = () => {
     setIsSubmitting(true);
     try {
       const serial_number = generateSerialNumber();
-      const qr_code = generateQrCode();
 
       const { data, error } = await supabase.from("scanners").insert({
         user_id: user.id,
         name: newScanner.name,
         serial_number,
-        qr_code,
         dispensa_id: newScanner.dispensa_id || null,
         status: "offline",
       }).select().single();
@@ -147,12 +152,6 @@ const Dispositivi = () => {
       console.error("Error assigning dispensa:", error);
       toast.error("Errore nell'assegnazione");
     }
-  };
-
-  const getDispensaName = (dispensaId: string | null) => {
-    if (!dispensaId) return "Non assegnato";
-    const d = dispense.find((d) => d.id === dispensaId);
-    return d?.name || "Sconosciuta";
   };
 
   const getTimeSinceLastSeen = (lastSeen: string | null) => {
@@ -251,7 +250,7 @@ const Dispositivi = () => {
               </p>
               <div className="p-4 bg-background rounded-xl border shadow-lg">
                 <QRCodeSVG
-                  value={selectedScanner.qr_code}
+                  value={selectedScanner.serial_number}
                   size={200}
                   level="H"
                   includeMargin

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Warehouse, Package, Loader2, Cpu } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,8 +10,7 @@ interface Dispensa {
   id: string;
   name: string;
   location: string | null;
-  icon: string | null;
-  status: string | null;
+  color: string | null;
   products_count: number | null;
   created_at: string;
   updated_at: string;
@@ -29,7 +27,6 @@ const Dispense = () => {
     if (!user) return;
 
     try {
-      // Fetch dispense with scanner count
       const { data: dispenseData, error: dispenseError } = await supabase
         .from('dispense')
         .select('*')
@@ -37,7 +34,6 @@ const Dispense = () => {
 
       if (dispenseError) throw dispenseError;
 
-      // Fetch scanners count per dispensa
       const { data: scanners, error: scannersError } = await supabase
         .from('scanners')
         .select('dispensa_id');
@@ -67,19 +63,6 @@ const Dispense = () => {
   useEffect(() => {
     fetchDispense();
   }, [user]);
-
-  const getStatusColor = (status: string | null) => {
-    switch (status) {
-      case "online":
-        return "success";
-      case "warning":
-        return "warning";
-      case "offline":
-        return "destructive";
-      default:
-        return "secondary";
-    }
-  };
 
   const getTimeSinceCreation = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -135,14 +118,24 @@ const Dispense = () => {
           {dispense.map((dispensa) => (
             <Card
               key={dispensa.id}
-              className="hover:shadow-glow transition-all cursor-pointer group animate-fade-in"
+              className="hover:shadow-glow transition-all cursor-pointer group animate-fade-in overflow-hidden"
               onClick={() => navigate(`/dispense/${dispensa.id}`)}
             >
+              <div 
+                className="h-2 w-full"
+                style={{ backgroundColor: dispensa.color || '#6366f1' }}
+              />
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                      <Warehouse className="h-6 w-6 text-primary" />
+                    <div 
+                      className="h-12 w-12 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform"
+                      style={{ backgroundColor: `${dispensa.color || '#6366f1'}20` }}
+                    >
+                      <Warehouse 
+                        className="h-6 w-6" 
+                        style={{ color: dispensa.color || '#6366f1' }}
+                      />
                     </div>
                     <div>
                       <CardTitle className="text-xl">{dispensa.name}</CardTitle>
@@ -151,9 +144,6 @@ const Dispense = () => {
                       </p>
                     </div>
                   </div>
-                  <Badge variant={getStatusColor(dispensa.status)}>
-                    {dispensa.status || 'offline'}
-                  </Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">

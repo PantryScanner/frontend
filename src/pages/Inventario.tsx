@@ -34,14 +34,10 @@ import { toast } from "sonner";
 
 interface Product {
   id: string;
-  name: string;
+  name: string | null;
   barcode: string | null;
   category: string | null;
-  brand: string | null;
-  unit: string | null;
   created_at: string;
-  total_quantity: number;
-  locations: number;
 }
 
 const Inventario = () => {
@@ -58,8 +54,7 @@ const Inventario = () => {
     name: "",
     barcode: "",
     category: "",
-    brand: "",
-    unit: "pz",
+    quantity: 1,
   });
 
   useEffect(() => {
@@ -68,37 +63,17 @@ const Inventario = () => {
 
   const fetchProducts = async () => {
     try {
-      // Fetch products with their quantities in dispense
       const { data: productsData, error } = await supabase
         .from("products")
-        .select(`
-          *,
-          dispense_products (
-            quantity,
-            dispensa_id
-          )
-        `)
-        .order("name");
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      const processedProducts = (productsData || []).map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        barcode: p.barcode,
-        category: p.category,
-        brand: p.brand,
-        unit: p.unit,
-        created_at: p.created_at,
-        total_quantity: p.dispense_products?.reduce((sum: number, dp: any) => sum + dp.quantity, 0) || 0,
-        locations: p.dispense_products?.length || 0,
-      }));
+      setProducts(productsData || []);
 
-      setProducts(processedProducts);
-
-      // Extract unique categories
       const uniqueCategories = [...new Set(
-        processedProducts
+        (productsData || [])
           .map((p: Product) => p.category)
           .filter((c: string | null): c is string => !!c)
       )];
@@ -112,45 +87,62 @@ const Inventario = () => {
   };
 
   const handleAddProduct = async () => {
-    if (!user || !newProduct.name) {
-      toast.error("Inserisci un nome per il prodotto");
+    if (!user) {
+      toast.error("Devi essere autenticato");
+      return;
+    }
+
+    if (!newProduct.barcode.trim()) {
+      toast.error("Il codice a barre è obbligatorio");
+      return;
+    }
+
+    if (!/^\d+$/.test(newProduct.barcode.trim())) {
+      toast.error("Il codice a barre deve contenere solo numeri");
+      return;
+    }
+
+    if (newProduct.quantity < 1) {
+      toast.error("La quantità deve essere almeno 1");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from("products").insert({
+      // Create individual products for each quantity
+      const productsToInsert = Array.from({ length: newProduct.quantity }, () => ({
         user_id: user.id,
-        name: newProduct.name,
-        barcode: newProduct.barcode || null,
-        category: newProduct.category || null,
-        brand: newProduct.brand || null,
-        unit: newProduct.unit || "pz",
-      });
+        name: newProduct.name.trim() || null,
+        barcode: newProduct.barcode.trim(),
+        category: newProduct.category.trim() || null,
+      }));
+
+      const { error } = await supabase.from("products").insert(productsToInsert);
 
       if (error) throw error;
 
-      toast.success("Prodotto aggiunto con successo");
-      setNewProduct({ name: "", barcode: "", category: "", brand: "", unit: "pz" });
+      toast.success(`${newProduct.quantity} prodott${newProduct.quantity > 1 ? 'i aggiunti' : 'o aggiunto'} con successo`);
+      setNewProduct({ name: "", barcode: "", category: "", quantity: 1 });
       setIsAddDialogOpen(false);
       fetchProducts();
     } catch (error: any) {
       console.error("Error adding product:", error);
-      if (error.code === "23505") {
-        toast.error("Un prodotto con questo codice a barre esiste già");
-      } else {
-        toast.error("Errore nell'aggiunta del prodotto");
-      }
+      toast.error("Errore nell'aggiunta del prodotto");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleBarcodeInput = (value: string) => {
+    // Only allow numeric input
+    const numericValue = value.replace(/\D/g, '');
+    setNewProduct({ ...newProduct, barcode: numericValue });
+  };
+
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.barcode?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.brand?.toLowerCase().includes(searchQuery.toLowerCase());
+      product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.barcode?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory =
       categoryFilter === "all" || product.category === categoryFilter;
     return matchesSearch && matchesCategory;
@@ -186,22 +178,26 @@ const Inventario = () => {
             </DialogHeader>
             <div className="space-y-4 pt-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Nome prodotto *</Label>
+                <Label htmlFor="barcode">Codice a barre *</Label>
                 <Input
-                  id="name"
-                  placeholder="es. Pasta Barilla 500g"
-                  value={newProduct.name}
-                  onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                  id="barcode"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="es. 8076800195057"
+                  value={newProduct.barcode}
+                  onChange={(e) => handleBarcodeInput(e.target.value)}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="barcode">Codice a barre</Label>
+                  <Label htmlFor="quantity">Quantità *</Label>
                   <Input
-                    id="barcode"
-                    placeholder="es. 8076800195057"
-                    value={newProduct.barcode}
-                    onChange={(e) => setNewProduct({ ...newProduct, barcode: e.target.value })}
+                    id="quantity"
+                    type="number"
+                    min="1"
+                    value={newProduct.quantity}
+                    onChange={(e) => setNewProduct({ ...newProduct, quantity: parseInt(e.target.value) || 1 })}
                   />
                 </div>
                 <div className="space-y-2">
@@ -214,40 +210,20 @@ const Inventario = () => {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="brand">Brand</Label>
-                  <Input
-                    id="brand"
-                    placeholder="es. Barilla"
-                    value={newProduct.brand}
-                    onChange={(e) => setNewProduct({ ...newProduct, brand: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="unit">Unità</Label>
-                  <Select
-                    value={newProduct.unit}
-                    onValueChange={(value) => setNewProduct({ ...newProduct, unit: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover">
-                      <SelectItem value="pz">Pezzi (pz)</SelectItem>
-                      <SelectItem value="kg">Chilogrammi (kg)</SelectItem>
-                      <SelectItem value="g">Grammi (g)</SelectItem>
-                      <SelectItem value="l">Litri (l)</SelectItem>
-                      <SelectItem value="ml">Millilitri (ml)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome (opzionale)</Label>
+                <Input
+                  id="name"
+                  placeholder="es. Pasta Barilla 500g"
+                  value={newProduct.name}
+                  onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                />
               </div>
               <Button onClick={handleAddProduct} disabled={isSubmitting} className="w-full">
                 {isSubmitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  "Aggiungi Prodotto"
+                  `Aggiungi ${newProduct.quantity > 1 ? `${newProduct.quantity} Prodotti` : 'Prodotto'}`
                 )}
               </Button>
             </div>
@@ -302,11 +278,9 @@ const Inventario = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Prodotto</TableHead>
-                    <TableHead>Codice</TableHead>
+                    <TableHead>Codice a barre</TableHead>
                     <TableHead>Categoria</TableHead>
-                    <TableHead>Brand</TableHead>
-                    <TableHead className="text-center">Quantità Totale</TableHead>
-                    <TableHead className="text-center">Dispense</TableHead>
+                    <TableHead>Data creazione</TableHead>
                     <TableHead className="text-right">Azioni</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -317,9 +291,11 @@ const Inventario = () => {
                       className="hover:bg-muted/50 cursor-pointer"
                       onClick={() => navigate(`/prodotti/${product.id}`)}
                     >
-                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell className="font-medium">
+                        {product.name || <span className="text-muted-foreground italic">Senza nome</span>}
+                      </TableCell>
                       <TableCell>
-                        <code className="text-xs text-muted-foreground">
+                        <code className="text-xs bg-muted px-2 py-1 rounded">
                           {product.barcode || "—"}
                         </code>
                       </TableCell>
@@ -331,14 +307,7 @@ const Inventario = () => {
                         )}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {product.brand || "—"}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className="font-bold">{product.total_quantity}</span>
-                        <span className="text-muted-foreground ml-1">{product.unit}</span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="outline">{product.locations}</Badge>
+                        {new Date(product.created_at).toLocaleDateString('it-IT')}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button

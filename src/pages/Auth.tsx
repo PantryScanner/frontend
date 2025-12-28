@@ -5,8 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Warehouse, Mail, Lock, User, ArrowLeft, Loader2 } from 'lucide-react';
+import { Warehouse, Mail, Lock, User, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
 import { z } from 'zod';
 
 const emailSchema = z.string().email('Email non valida');
@@ -19,6 +26,7 @@ const Auth = () => {
   const [username, setUsername] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [showVerificationDialog, setShowVerificationDialog] = useState(false);
 
   const { signIn, signUp, user, loading } = useAuth();
   const navigate = useNavigate();
@@ -62,6 +70,9 @@ const Auth = () => {
           if (error.message.includes('Invalid login credentials')) {
             message = 'Credenziali non valide. Controlla email e password.';
           }
+          if (error.message.includes('Email not confirmed')) {
+            message = 'Email non verificata. Controlla la tua casella di posta.';
+          }
           toast({
             variant: 'destructive',
             title: 'Errore di accesso',
@@ -86,10 +97,7 @@ const Auth = () => {
             description: message
           });
         } else {
-          toast({
-            title: 'Account creato!',
-            description: 'Registrazione completata con successo.'
-          });
+          setShowVerificationDialog(true);
         }
       }
     } finally {
@@ -112,6 +120,40 @@ const Auth = () => {
         <div className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-to-br from-primary/10 via-transparent to-transparent rounded-full" />
         <div className="absolute -bottom-1/2 -left-1/2 w-full h-full bg-gradient-to-tr from-primary/5 via-transparent to-transparent rounded-full" />
       </div>
+
+      {/* Email Verification Dialog */}
+      <Dialog open={showVerificationDialog} onOpenChange={setShowVerificationDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto h-16 w-16 rounded-2xl bg-success/10 flex items-center justify-center mb-4">
+              <CheckCircle2 className="h-8 w-8 text-success" />
+            </div>
+            <DialogTitle className="text-center text-xl">Account creato!</DialogTitle>
+            <DialogDescription className="text-center space-y-2">
+              <p>
+                Abbiamo inviato un'email di verifica a <strong>{email}</strong>.
+              </p>
+              <p>
+                Per completare la registrazione, clicca sul link che trovi nell'email.
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 pt-4">
+            <Button onClick={() => {
+              setShowVerificationDialog(false);
+              setIsLogin(true);
+              setEmail('');
+              setPassword('');
+              setUsername('');
+            }}>
+              Ho verificato, accedi
+            </Button>
+            <Button variant="outline" onClick={() => setShowVerificationDialog(false)}>
+              Lo farò più tardi
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="w-full max-w-md relative z-10">
         <Link 
