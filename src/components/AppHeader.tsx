@@ -1,4 +1,5 @@
-import { Bell, Search } from "lucide-react";
+import { useState } from "react";
+import { Bell, Search, X, Check, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -6,11 +7,77 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useNotifications } from "@/hooks/useNotifications";
+import { cn } from "@/lib/utils";
 
 export function AppHeader() {
+  const { 
+    notifications, 
+    unreadCount, 
+    markAsRead, 
+    markAllAsRead, 
+    deleteNotification,
+    clearAll 
+  } = useNotifications();
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (open && unreadCount > 0) {
+      markAllAsRead();
+    }
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case "success":
+        return "bg-success/10 border-success/20";
+      case "warning":
+        return "bg-warning/10 border-warning/20";
+      case "error":
+        return "bg-destructive/10 border-destructive/20";
+      case "scanner":
+        return "bg-primary/10 border-primary/20";
+      default:
+        return "bg-muted border-border";
+    }
+  };
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case "success":
+        return "✓";
+      case "warning":
+        return "⚠";
+      case "error":
+        return "✕";
+      case "scanner":
+        return "📡";
+      default:
+        return "ℹ";
+    }
+  };
+
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return "Ora";
+    if (diffMins < 60) return `${diffMins} min fa`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h fa`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}g fa`;
+    return date.toLocaleDateString("it-IT");
+  };
+
   return (
     <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6 gap-4">
       <div className="flex items-center gap-4">
@@ -25,36 +92,101 @@ export function AppHeader() {
       </div>
       
       <div className="flex items-center gap-3">
-        <DropdownMenu>
+        <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
-              <Badge 
-                className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-destructive text-destructive-foreground"
-              >
-                3
-              </Badge>
+              {unreadCount > 0 && (
+                <Badge 
+                  className="absolute -top-1 -right-1 h-5 min-w-[1.25rem] flex items-center justify-center p-0 px-1 bg-destructive text-destructive-foreground text-xs"
+                >
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </Badge>
+              )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80 bg-popover">
-            <DropdownMenuItem className="flex flex-col items-start gap-1 p-3">
-              <div className="font-medium">Prodotto sotto soglia</div>
-              <div className="text-sm text-muted-foreground">
-                Pasta rimangono solo 2 confezioni in Dispensa A
+          <DropdownMenuContent 
+            align="end" 
+            className="w-96 bg-popover p-0"
+            sideOffset={8}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <h3 className="font-semibold">Notifiche</h3>
+              {notifications.length > 0 && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    clearAll();
+                  }}
+                >
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Elimina tutte
+                </Button>
+              )}
+            </div>
+            
+            {notifications.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground">
+                <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Nessuna notifica</p>
               </div>
-            </DropdownMenuItem>
-            <DropdownMenuItem className="flex flex-col items-start gap-1 p-3">
-              <div className="font-medium">Dispositivo offline</div>
-              <div className="text-sm text-muted-foreground">
-                Scanner Dispensa B non risponde da 10 minuti
-              </div>
-            </DropdownMenuItem>
-            <DropdownMenuItem className="flex flex-col items-start gap-1 p-3">
-              <div className="font-medium">Nuovo prodotto rilevato</div>
-              <div className="text-sm text-muted-foreground">
-                Biscotti aggiunti automaticamente all'inventario
-              </div>
-            </DropdownMenuItem>
+            ) : (
+              <ScrollArea className="max-h-[400px]">
+                <div className="divide-y">
+                  {notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className={cn(
+                        "relative px-4 py-3 hover:bg-muted/50 transition-colors group",
+                        !notification.read && "bg-primary/5"
+                      )}
+                    >
+                      <div className="flex gap-3">
+                        <div 
+                          className={cn(
+                            "h-8 w-8 rounded-full flex items-center justify-center text-sm border shrink-0",
+                            getTypeColor(notification.type)
+                          )}
+                        >
+                          {getTypeIcon(notification.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="font-medium text-sm truncate">
+                              {notification.title}
+                            </p>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                deleteNotification(notification.id);
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {notification.message}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {formatTime(notification.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                      {!notification.read && (
+                        <div className="absolute top-4 right-12 h-2 w-2 rounded-full bg-primary" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
