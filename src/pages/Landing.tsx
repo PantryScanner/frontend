@@ -55,6 +55,8 @@ const Landing = () => {
     "Report automatici"
   ];
 
+  const year = new Date().getFullYear();
+
   return (
     <div className="min-h-screen bg-background overflow-hidden">
       {/* Hero Section */}
@@ -245,10 +247,10 @@ const Landing = () => {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <Warehouse className="h-6 w-6 text-primary" />
-              <span className="font-semibold">StockManager</span>
+              <span className="font-semibold">PantryOS</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              © 2024 StockManager. Tutti i diritti riservati.
+              © {year} PantryOS. Tutti i diritti riservati.
             </p>
           </div>
         </div>

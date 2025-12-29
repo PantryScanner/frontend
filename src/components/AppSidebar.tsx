@@ -46,7 +46,7 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-lg font-bold mb-4 px-4">
-            {!isCollapsed && "StockManager"}
+            {!isCollapsed && "PantryOS"}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
