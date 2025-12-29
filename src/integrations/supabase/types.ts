@@ -95,6 +95,36 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          read: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          read?: boolean
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          read?: boolean
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           barcode: string | null
@@ -212,7 +242,6 @@ export type Database = {
           last_seen_at: string | null
           name: string
           serial_number: string
-          status: string | null
           updated_at: string
           user_id: string
         }
@@ -223,7 +252,6 @@ export type Database = {
           last_seen_at?: string | null
           name: string
           serial_number: string
-          status?: string | null
           updated_at?: string
           user_id: string
         }
@@ -234,7 +262,6 @@ export type Database = {
           last_seen_at?: string | null
           name?: string
           serial_number?: string
-          status?: string | null
           updated_at?: string
           user_id?: string
         }

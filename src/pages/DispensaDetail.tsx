@@ -48,7 +48,6 @@ interface Scanner {
   id: string;
   name: string;
   serial_number: string;
-  status: string | null;
   last_seen_at: string | null;
 }
 
@@ -60,6 +59,16 @@ interface ProductInDispensa {
   threshold: number;
   last_scanned_at: string | null;
 }
+
+// Helper to check if scanner is online (last seen < 5 minutes ago)
+const isScannerOnline = (lastSeenAt: string | null): boolean => {
+  if (!lastSeenAt) return false;
+  const lastSeen = new Date(lastSeenAt);
+  const now = new Date();
+  const diffMs = now.getTime() - lastSeen.getTime();
+  const diffMins = diffMs / 60000;
+  return diffMins < 5;
+};
 
 const DispensaDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -97,7 +106,7 @@ const DispensaDetail = () => {
 
       const { data: scannersData, error: scannersError } = await supabase
         .from("scanners")
-        .select("*")
+        .select("id, name, serial_number, last_seen_at")
         .eq("dispensa_id", id);
 
       if (!scannersError) {
@@ -298,41 +307,44 @@ const DispensaDetail = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {scanners.map((scanner) => (
-                <div
-                  key={scanner.id}
-                  className="p-4 rounded-lg border bg-card hover:shadow-sm transition-shadow"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Cpu className={`h-5 w-5 ${scanner.status === "online" ? "text-success" : "text-muted-foreground"}`} />
-                      <span className="font-medium">{scanner.name}</span>
-                    </div>
-                    <Badge variant={scanner.status === "online" ? "success" : "secondary"}>
-                      {scanner.status === "online" ? (
-                        <><Wifi className="h-3 w-3 mr-1" /> Online</>
-                      ) : (
-                        <><WifiOff className="h-3 w-3 mr-1" /> Offline</>
-                      )}
-                    </Badge>
-                  </div>
-                  <code className="text-xs text-muted-foreground block mb-3">
-                    {scanner.serial_number}
-                  </code>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => {
-                      setSelectedScanner(scanner);
-                      setIsQrDialogOpen(true);
-                    }}
+              {scanners.map((scanner) => {
+                const isOnline = isScannerOnline(scanner.last_seen_at);
+                return (
+                  <div
+                    key={scanner.id}
+                    className="p-4 rounded-lg border bg-card hover:shadow-sm transition-shadow"
                   >
-                    <QrCode className="h-4 w-4 mr-2" />
-                    Mostra QR
-                  </Button>
-                </div>
-              ))}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Cpu className={`h-5 w-5 ${isOnline ? "text-success" : "text-muted-foreground"}`} />
+                        <span className="font-medium">{scanner.name}</span>
+                      </div>
+                      <Badge variant={isOnline ? "success" : "secondary"}>
+                        {isOnline ? (
+                          <><Wifi className="h-3 w-3 mr-1" /> Online</>
+                        ) : (
+                          <><WifiOff className="h-3 w-3 mr-1" /> Offline</>
+                        )}
+                      </Badge>
+                    </div>
+                    <code className="text-xs text-muted-foreground block mb-3">
+                      {scanner.serial_number}
+                    </code>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        setSelectedScanner(scanner);
+                        setIsQrDialogOpen(true);
+                      }}
+                    >
+                      <QrCode className="h-4 w-4 mr-2" />
+                      Mostra QR
+                    </Button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>

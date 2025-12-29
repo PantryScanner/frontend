@@ -31,6 +31,8 @@ import { Search, Filter, Plus, Package, Loader2, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { useNotifications } from "@/hooks/useNotifications";
+import { useProductInfo } from "@/hooks/useProductInfo";
 
 interface Product {
   id: string;
@@ -40,10 +42,18 @@ interface Product {
   created_at: string;
 }
 
+interface Dispensa {
+  id: string;
+  name: string;
+}
+
 const Inventario = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { addNotification } = useNotifications();
+  const { fetchProductInfo } = useProductInfo();
   const [products, setProducts] = useState<Product[]>([]);
+  const [dispense, setDispense] = useState<Dispensa[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -55,31 +65,33 @@ const Inventario = () => {
     barcode: "",
     category: "",
     quantity: 1,
+    dispensa_id: "",
   });
 
   useEffect(() => {
-    if (user) fetchProducts();
+    if (user) fetchData();
   }, [user]);
 
-  const fetchProducts = async () => {
+  const fetchData = async () => {
     try {
-      const { data: productsData, error } = await supabase
-        .from("products")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const [productsRes, dispenseRes] = await Promise.all([
+        supabase.from("products").select("*").order("created_at", { ascending: false }),
+        supabase.from("dispense").select("id, name"),
+      ]);
 
-      if (error) throw error;
-
-      setProducts(productsData || []);
+      if (productsRes.error) throw productsRes.error;
+      
+      setProducts(productsRes.data || []);
+      setDispense(dispenseRes.data || []);
 
       const uniqueCategories = [...new Set(
-        (productsData || [])
+        (productsRes.data || [])
           .map((p: Product) => p.category)
           .filter((c: string | null): c is string => !!c)
       )];
       setCategories(uniqueCategories);
     } catch (error) {
-      console.error("Error fetching products:", error);
+      console.error("Error fetching data:", error);
       toast.error("Errore nel caricamento dei prodotti");
     } finally {
       setIsLoading(false);
@@ -109,22 +121,60 @@ const Inventario = () => {
 
     setIsSubmitting(true);
     try {
+      // Fetch product info from OpenFoodFacts
+      const productInfo = await fetchProductInfo(newProduct.barcode.trim());
+      const productName = newProduct.name.trim() || productInfo?.name || null;
+      const productCategory = newProduct.category.trim() || productInfo?.category || null;
+
       // Create individual products for each quantity
       const productsToInsert = Array.from({ length: newProduct.quantity }, () => ({
         user_id: user.id,
-        name: newProduct.name.trim() || null,
+        name: productName,
         barcode: newProduct.barcode.trim(),
-        category: newProduct.category.trim() || null,
+        category: productCategory,
       }));
 
-      const { error } = await supabase.from("products").insert(productsToInsert);
+      const { data: insertedProducts, error } = await supabase
+        .from("products")
+        .insert(productsToInsert)
+        .select();
 
       if (error) throw error;
 
+      // If dispensa is selected, add products to dispense_products
+      if (newProduct.dispensa_id && insertedProducts) {
+        for (const product of insertedProducts) {
+          const { data: existing } = await supabase
+            .from("dispense_products")
+            .select("id, quantity")
+            .eq("dispensa_id", newProduct.dispensa_id)
+            .eq("product_id", product.id)
+            .maybeSingle();
+
+          if (existing) {
+            await supabase
+              .from("dispense_products")
+              .update({ quantity: existing.quantity + 1 })
+              .eq("id", existing.id);
+          } else {
+            await supabase.from("dispense_products").insert({
+              dispensa_id: newProduct.dispensa_id,
+              product_id: product.id,
+              quantity: 1,
+            });
+          }
+        }
+      }
+
       toast.success(`${newProduct.quantity} prodott${newProduct.quantity > 1 ? 'i aggiunti' : 'o aggiunto'} con successo`);
-      setNewProduct({ name: "", barcode: "", category: "", quantity: 1 });
+      addNotification(
+        "Prodotto aggiunto",
+        `${newProduct.quantity} prodott${newProduct.quantity > 1 ? 'i' : 'o'} aggiunt${newProduct.quantity > 1 ? 'i' : 'o'} all'inventario`,
+        "success"
+      );
+      setNewProduct({ name: "", barcode: "", category: "", quantity: 1, dispensa_id: "" });
       setIsAddDialogOpen(false);
-      fetchProducts();
+      fetchData();
     } catch (error: any) {
       console.error("Error adding product:", error);
       toast.error("Errore nell'aggiunta del prodotto");
@@ -134,7 +184,6 @@ const Inventario = () => {
   };
 
   const handleBarcodeInput = (value: string) => {
-    // Only allow numeric input
     const numericValue = value.replace(/\D/g, '');
     setNewProduct({ ...newProduct, barcode: numericValue });
   };
@@ -161,9 +210,7 @@ const Inventario = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold mb-2">Inventario</h1>
-          <p className="text-muted-foreground">
-            Gestisci tutti i prodotti tracciati dal sistema
-          </p>
+          <p className="text-muted-foreground">Gestisci tutti i prodotti tracciati dal sistema</p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
@@ -201,14 +248,31 @@ const Inventario = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="category">Categoria</Label>
-                  <Input
-                    id="category"
-                    placeholder="es. Pasta"
-                    value={newProduct.category}
-                    onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
-                  />
+                  <Label htmlFor="dispensa">Dispensa</Label>
+                  <Select
+                    value={newProduct.dispensa_id}
+                    onValueChange={(value) => setNewProduct({ ...newProduct, dispensa_id: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Nessuna" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover">
+                      <SelectItem value="none">Nessuna</SelectItem>
+                      {dispense.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="category">Categoria</Label>
+                <Input
+                  id="category"
+                  placeholder="es. Pasta"
+                  value={newProduct.category}
+                  onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="name">Nome (opzionale)</Label>
@@ -220,11 +284,7 @@ const Inventario = () => {
                 />
               </div>
               <Button onClick={handleAddProduct} disabled={isSubmitting} className="w-full">
-                {isSubmitting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  `Aggiungi ${newProduct.quantity > 1 ? `${newProduct.quantity} Prodotti` : 'Prodotto'}`
-                )}
+                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : `Aggiungi ${newProduct.quantity > 1 ? `${newProduct.quantity} Prodotti` : 'Prodotto'}`}
               </Button>
             </div>
           </DialogContent>
@@ -241,12 +301,7 @@ const Inventario = () => {
             <div className="flex gap-3 w-full sm:w-auto">
               <div className="relative flex-1 sm:flex-initial sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Cerca prodotto..."
-                  className="pl-10"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+                <Input placeholder="Cerca prodotto..." className="pl-10" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
               </div>
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger className="w-[150px]">
@@ -255,11 +310,7 @@ const Inventario = () => {
                 </SelectTrigger>
                 <SelectContent className="bg-popover">
                   <SelectItem value="all">Tutte</SelectItem>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
+                  {categories.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
@@ -286,40 +337,14 @@ const Inventario = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredProducts.map((product) => (
-                    <TableRow
-                      key={product.id}
-                      className="hover:bg-muted/50 cursor-pointer"
-                      onClick={() => navigate(`/prodotti/${product.id}`)}
-                    >
-                      <TableCell className="font-medium">
-                        {product.name || <span className="text-muted-foreground italic">Senza nome</span>}
-                      </TableCell>
-                      <TableCell>
-                        <code className="text-xs bg-muted px-2 py-1 rounded">
-                          {product.barcode || "—"}
-                        </code>
-                      </TableCell>
-                      <TableCell>
-                        {product.category ? (
-                          <Badge variant="secondary">{product.category}</Badge>
-                        ) : (
-                          "—"
-                        )}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {new Date(product.created_at).toLocaleDateString('it-IT')}
-                      </TableCell>
+                    <TableRow key={product.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => navigate(`/prodotti/${product.id}`)}>
+                      <TableCell className="font-medium">{product.name || <span className="text-muted-foreground italic">Senza nome</span>}</TableCell>
+                      <TableCell><code className="text-xs bg-muted px-2 py-1 rounded">{product.barcode || "—"}</code></TableCell>
+                      <TableCell>{product.category ? <Badge variant="secondary">{product.category}</Badge> : "—"}</TableCell>
+                      <TableCell className="text-muted-foreground">{new Date(product.created_at).toLocaleDateString('it-IT')}</TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/prodotti/${product.id}`);
-                          }}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          Dettagli
+                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); navigate(`/prodotti/${product.id}`); }}>
+                          <Eye className="h-4 w-4 mr-1" />Dettagli
                         </Button>
                       </TableCell>
                     </TableRow>

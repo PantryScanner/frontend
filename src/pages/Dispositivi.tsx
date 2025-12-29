@@ -23,12 +23,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
+import { useNotifications } from "@/hooks/useNotifications";
 
 interface Scanner {
   id: string;
   serial_number: string;
   name: string;
-  status: string | null;
   dispensa_id: string | null;
   last_seen_at: string | null;
   created_at: string;
@@ -49,6 +49,17 @@ const Dispositivi = () => {
   const [newScanner, setNewScanner] = useState({ name: "", dispensa_id: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
+  const { addNotification } = useNotifications();
+
+  // Helper to check if scanner is online (last seen < 5 minutes ago)
+  const isScannerOnline = (lastSeenAt: string | null): boolean => {
+    if (!lastSeenAt) return false;
+    const lastSeen = new Date(lastSeenAt);
+    const now = new Date();
+    const diffMs = now.getTime() - lastSeen.getTime();
+    const diffMins = diffMs / 60000;
+    return diffMins < 5;
+  };
 
   const fetchData = async () => {
     if (!user) return;
@@ -107,12 +118,12 @@ const Dispositivi = () => {
         name: newScanner.name,
         serial_number,
         dispensa_id: newScanner.dispensa_id || null,
-        status: "offline",
       }).select().single();
 
       if (error) throw error;
 
       toast.success("Dispositivo aggiunto con successo");
+      addNotification("Nuovo scanner creato", `Scanner "${newScanner.name}" è stato configurato`, "success");
       setNewScanner({ name: "", dispensa_id: "" });
       setIsAddDialogOpen(false);
       setSelectedScanner(data);
@@ -126,11 +137,12 @@ const Dispositivi = () => {
     }
   };
 
-  const handleDeleteScanner = async (id: string) => {
+  const handleDeleteScanner = async (id: string, name: string) => {
     try {
       const { error } = await supabase.from("scanners").delete().eq("id", id);
       if (error) throw error;
       toast.success("Dispositivo eliminato");
+      addNotification("Scanner eliminato", `Scanner "${name}" è stato rimosso`, "info");
       fetchData();
     } catch (error) {
       console.error("Error deleting scanner:", error);
@@ -283,88 +295,91 @@ const Dispositivi = () => {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {scanners.map((scanner) => (
-            <Card
-              key={scanner.id}
-              className="hover:shadow-glow transition-all animate-fade-in"
-            >
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`h-12 w-12 rounded-lg flex items-center justify-center ${
-                      scanner.status === "online" ? "bg-success/10" : "bg-muted"
-                    }`}>
-                      <Cpu className={`h-6 w-6 ${
-                        scanner.status === "online" ? "text-success" : "text-muted-foreground"
-                      }`} />
+          {scanners.map((scanner) => {
+            const isOnline = isScannerOnline(scanner.last_seen_at);
+            return (
+              <Card
+                key={scanner.id}
+                className="hover:shadow-glow transition-all animate-fade-in"
+              >
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`h-12 w-12 rounded-lg flex items-center justify-center ${
+                        isOnline ? "bg-success/10" : "bg-muted"
+                      }`}>
+                        <Cpu className={`h-6 w-6 ${
+                          isOnline ? "text-success" : "text-muted-foreground"
+                        }`} />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">{scanner.name}</CardTitle>
+                        <code className="text-xs text-muted-foreground">
+                          {scanner.serial_number}
+                        </code>
+                      </div>
                     </div>
-                    <div>
-                      <CardTitle className="text-lg">{scanner.name}</CardTitle>
-                      <code className="text-xs text-muted-foreground">
-                        {scanner.serial_number}
-                      </code>
-                    </div>
+                    <Badge variant={isOnline ? "success" : "secondary"}>
+                      {isOnline ? (
+                        <><Wifi className="h-3 w-3 mr-1" /> Online</>
+                      ) : (
+                        <><WifiOff className="h-3 w-3 mr-1" /> Offline</>
+                      )}
+                    </Badge>
                   </div>
-                  <Badge variant={scanner.status === "online" ? "success" : "secondary"}>
-                    {scanner.status === "online" ? (
-                      <><Wifi className="h-3 w-3 mr-1" /> Online</>
-                    ) : (
-                      <><WifiOff className="h-3 w-3 mr-1" /> Offline</>
-                    )}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Dispensa assegnata</Label>
-                  <Select
-                    value={scanner.dispensa_id || "none"}
-                    onValueChange={(value) => handleAssignDispensa(scanner.id, value)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover">
-                      <SelectItem value="none">Non assegnato</SelectItem>
-                      {dispense.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>
-                          {d.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Dispensa assegnata</Label>
+                    <Select
+                      value={scanner.dispensa_id || "none"}
+                      onValueChange={(value) => handleAssignDispensa(scanner.id, value)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover">
+                        <SelectItem value="none">Non assegnato</SelectItem>
+                        {dispense.map((d) => (
+                          <SelectItem key={d.id} value={d.id}>
+                            {d.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>Ultima connessione</span>
-                  <span>{getTimeSinceLastSeen(scanner.last_seen_at)}</span>
-                </div>
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>Ultima connessione</span>
+                    <span>{getTimeSinceLastSeen(scanner.last_seen_at)}</span>
+                  </div>
 
-                <div className="flex gap-2 pt-2 border-t">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => {
-                      setSelectedScanner(scanner);
-                      setIsQrDialogOpen(true);
-                    }}
-                  >
-                    <QrCode className="h-4 w-4 mr-2" />
-                    Mostra QR
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => handleDeleteScanner(scanner.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="flex gap-2 pt-2 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => {
+                        setSelectedScanner(scanner);
+                        setIsQrDialogOpen(true);
+                      }}
+                    >
+                      <QrCode className="h-4 w-4 mr-2" />
+                      Mostra QR
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleDeleteScanner(scanner.id, scanner.name)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

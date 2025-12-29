@@ -43,6 +43,16 @@ const Dashboard = () => {
     }
   }, [user]);
 
+  // Helper to check if scanner is online (last seen < 5 minutes ago)
+  const isScannerOnline = (lastSeenAt: string | null): boolean => {
+    if (!lastSeenAt) return false;
+    const lastSeen = new Date(lastSeenAt);
+    const now = new Date();
+    const diffMs = now.getTime() - lastSeen.getTime();
+    const diffMins = diffMs / 60000;
+    return diffMins < 5;
+  };
+
   const fetchDashboardData = async () => {
     try {
       // Fetch dispense count
@@ -50,8 +60,8 @@ const Dashboard = () => {
         .from("dispense")
         .select("*", { count: "exact", head: true });
 
-      // Fetch scanners
-      const { data: scanners } = await supabase.from("scanners").select("status");
+      // Fetch scanners with last_seen_at to calculate status dynamically
+      const { data: scanners } = await supabase.from("scanners").select("last_seen_at");
 
       // Fetch products count
       const { count: productsCount } = await supabase
@@ -81,9 +91,12 @@ const Dashboard = () => {
         .order("created_at", { ascending: false })
         .limit(8);
 
+      // Calculate online scanners dynamically
+      const onlineScanners = scanners?.filter((s) => isScannerOnline(s.last_seen_at)).length || 0;
+
       setStats({
         totalProducts: productsCount || 0,
-        scannersOnline: scanners?.filter((s) => s.status === "online").length || 0,
+        scannersOnline: onlineScanners,
         scannersTotal: scanners?.length || 0,
         belowThreshold,
         totalDispense: dispenseCount || 0,
@@ -209,34 +222,34 @@ const Dashboard = () => {
           <CardContent className="grid grid-cols-2 gap-3">
             <Button
               variant="outline"
-              className="h-auto py-4 flex flex-col gap-2"
+              className="h-auto py-4 flex flex-col gap-2 group"
               onClick={() => navigate("/dispense")}
             >
-              <Warehouse className="h-6 w-6 text-primary" />
+              <Warehouse className="h-6 w-6 text-primary group-hover:text-primary-foreground transition-colors" />
               <span>Gestisci Dispense</span>
             </Button>
             <Button
               variant="outline"
-              className="h-auto py-4 flex flex-col gap-2"
+              className="h-auto py-4 flex flex-col gap-2 group"
               onClick={() => navigate("/dispositivi")}
             >
-              <Cpu className="h-6 w-6 text-primary" />
+              <Cpu className="h-6 w-6 text-primary group-hover:text-primary-foreground transition-colors" />
               <span>Configura Scanner</span>
             </Button>
             <Button
               variant="outline"
-              className="h-auto py-4 flex flex-col gap-2"
+              className="h-auto py-4 flex flex-col gap-2 group"
               onClick={() => navigate("/inventario")}
             >
-              <Package className="h-6 w-6 text-primary" />
+              <Package className="h-6 w-6 text-primary group-hover:text-primary-foreground transition-colors" />
               <span>Vedi Inventario</span>
             </Button>
             <Button
               variant="outline"
-              className="h-auto py-4 flex flex-col gap-2"
+              className="h-auto py-4 flex flex-col gap-2 group"
               onClick={() => navigate("/grafici")}
             >
-              <TrendingUp className="h-6 w-6 text-primary" />
+              <TrendingUp className="h-6 w-6 text-primary group-hover:text-primary-foreground transition-colors" />
               <span>Statistiche</span>
             </Button>
           </CardContent>
