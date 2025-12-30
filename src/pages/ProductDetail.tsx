@@ -19,7 +19,7 @@ import {
   TrendingDown,
   Clock,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/backend/client";
 import { toast } from "sonner";
 
 interface Product {

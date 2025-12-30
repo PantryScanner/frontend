@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Warehouse, Package, Loader2, Cpu } from "lucide-react";
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from "@/integrations/backend/client";
 import { useAuth } from '@/contexts/AuthContext';
 import { AddDispensaDialog } from '@/components/AddDispensaDialog';
 
