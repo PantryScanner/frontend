@@ -8,14 +8,17 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AppHeader } from "@/components/AppHeader";
+import { TutorialOverlay } from "@/components/TutorialOverlay";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Inventario from "./pages/Inventario";
 import Dispense from "./pages/Dispense";
 import DispensaDetail from "./pages/DispensaDetail";
 import ProductDetail from "./pages/ProductDetail";
 import Dispositivi from "./pages/Dispositivi";
+import Grafici from "./pages/Grafici";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,11 +29,10 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => (
       <AppSidebar />
       <div className="flex-1 flex flex-col">
         <AppHeader />
-        <main className="flex-1 p-6 overflow-auto">
-          {children}
-        </main>
+        <main className="flex-1 p-6 overflow-auto">{children}</main>
       </div>
     </div>
+    <TutorialOverlay />
   </SidebarProvider>
 );
 
@@ -42,31 +44,16 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Public routes */}
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
-            
-            {/* Protected routes with layout */}
-            <Route path="/dashboard" element={
-              <ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>
-            } />
-            <Route path="/inventario" element={
-              <ProtectedRoute><AppLayout><Inventario /></AppLayout></ProtectedRoute>
-            } />
-            <Route path="/prodotti/:id" element={
-              <ProtectedRoute><AppLayout><ProductDetail /></AppLayout></ProtectedRoute>
-            } />
-            <Route path="/dispense" element={
-              <ProtectedRoute><AppLayout><Dispense /></AppLayout></ProtectedRoute>
-            } />
-            <Route path="/dispense/:id" element={
-              <ProtectedRoute><AppLayout><DispensaDetail /></AppLayout></ProtectedRoute>
-            } />
-            <Route path="/dispositivi" element={
-              <ProtectedRoute><AppLayout><Dispositivi /></AppLayout></ProtectedRoute>
-            } />
-            
-            {/* Catch-all route */}
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
+            <Route path="/inventario" element={<ProtectedRoute><AppLayout><Inventario /></AppLayout></ProtectedRoute>} />
+            <Route path="/prodotti/:id" element={<ProtectedRoute><AppLayout><ProductDetail /></AppLayout></ProtectedRoute>} />
+            <Route path="/dispense" element={<ProtectedRoute><AppLayout><Dispense /></AppLayout></ProtectedRoute>} />
+            <Route path="/dispense/:id" element={<ProtectedRoute><AppLayout><DispensaDetail /></AppLayout></ProtectedRoute>} />
+            <Route path="/dispositivi" element={<ProtectedRoute><AppLayout><Dispositivi /></AppLayout></ProtectedRoute>} />
+            <Route path="/grafici" element={<ProtectedRoute><AppLayout><Grafici /></AppLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

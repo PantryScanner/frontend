@@ -1,13 +1,11 @@
 import { useState } from "react";
-import { Bell, Search, X, Check, Trash2 } from "lucide-react";
+import { Bell, Search, X, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
@@ -134,7 +132,7 @@ export function AppHeader() {
                 <p className="text-sm">Nessuna notifica</p>
               </div>
             ) : (
-              <ScrollArea className="max-h-[400px]">
+              <ScrollArea className="h-[400px]">
                 <div className="divide-y">
                   {notifications.map((notification) => (
                     <div
