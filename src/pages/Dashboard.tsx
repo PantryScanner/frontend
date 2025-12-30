@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, Cpu, AlertTriangle, TrendingUp, Warehouse, Wifi, WifiOff, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/backend/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface DashboardStats {
