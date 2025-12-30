@@ -125,31 +125,96 @@ export type Database = {
         }
         Relationships: []
       }
-      products: {
+      product_categories: {
         Row: {
-          barcode: string | null
-          category: string | null
+          category_name: string
           created_at: string
           id: string
+          product_id: string
+        }
+        Insert: {
+          category_name: string
+          created_at?: string
+          id?: string
+          product_id: string
+        }
+        Update: {
+          category_name?: string
+          created_at?: string
+          id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_categories_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          allergens: string | null
+          barcode: string | null
+          brand: string | null
+          carbon_footprint: Json | null
+          category: string | null
+          created_at: string
+          ecoscore: string | null
+          id: string
+          image_url: string | null
+          ingredients: string | null
+          labels: string | null
           name: string | null
+          nova_group: number | null
+          nutriscore: string | null
+          nutritional_values: Json | null
+          origin: string | null
+          packaging: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          allergens?: string | null
           barcode?: string | null
+          brand?: string | null
+          carbon_footprint?: Json | null
           category?: string | null
           created_at?: string
+          ecoscore?: string | null
           id?: string
+          image_url?: string | null
+          ingredients?: string | null
+          labels?: string | null
           name?: string | null
+          nova_group?: number | null
+          nutriscore?: string | null
+          nutritional_values?: Json | null
+          origin?: string | null
+          packaging?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          allergens?: string | null
           barcode?: string | null
+          brand?: string | null
+          carbon_footprint?: Json | null
           category?: string | null
           created_at?: string
+          ecoscore?: string | null
           id?: string
+          image_url?: string | null
+          ingredients?: string | null
+          labels?: string | null
           name?: string | null
+          nova_group?: number | null
+          nutriscore?: string | null
+          nutritional_values?: Json | null
+          origin?: string | null
+          packaging?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -159,6 +224,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          tutorial_completed: boolean | null
           updated_at: string
           user_id: string
           username: string | null
@@ -166,6 +232,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          tutorial_completed?: boolean | null
           updated_at?: string
           user_id: string
           username?: string | null
@@ -173,6 +240,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          tutorial_completed?: boolean | null
           updated_at?: string
           user_id?: string
           username?: string | null

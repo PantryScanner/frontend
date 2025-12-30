@@ -5,14 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/backend/client';
 import { Warehouse, Mail, Lock, User, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
 import { z } from 'zod';
 
@@ -27,75 +22,49 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [showVerificationDialog, setShowVerificationDialog] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
 
   const { signIn, signUp, user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!loading && user) {
-      navigate('/dashboard');
-    }
+    if (!loading && user) navigate('/dashboard');
   }, [user, loading, navigate]);
 
   const validateForm = (): boolean => {
     const newErrors: { email?: string; password?: string } = {};
-
     const emailResult = emailSchema.safeParse(email);
-    if (!emailResult.success) {
-      newErrors.email = emailResult.error.errors[0].message;
-    }
-
+    if (!emailResult.success) newErrors.email = emailResult.error.errors[0].message;
     const passwordResult = passwordSchema.safeParse(password);
-    if (!passwordResult.success) {
-      newErrors.password = passwordResult.error.errors[0].message;
-    }
-
+    if (!passwordResult.success) newErrors.password = passwordResult.error.errors[0].message;
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
-    
     setIsLoading(true);
-
     try {
       if (isLogin) {
         const { error } = await signIn(email, password);
         if (error) {
           let message = error.message;
-          if (error.message.includes('Invalid login credentials')) {
-            message = 'Credenziali non valide. Controlla email e password.';
-          }
-          if (error.message.includes('Email not confirmed')) {
-            message = 'Email non verificata. Controlla la tua casella di posta.';
-          }
-          toast({
-            variant: 'destructive',
-            title: 'Errore di accesso',
-            description: message
-          });
+          if (error.message.includes('Invalid login credentials')) message = 'Credenziali non valide.';
+          if (error.message.includes('Email not confirmed')) message = 'Email non verificata.';
+          toast({ variant: 'destructive', title: 'Errore di accesso', description: message });
         } else {
-          toast({
-            title: 'Benvenuto!',
-            description: 'Accesso effettuato con successo.'
-          });
+          toast({ title: 'Benvenuto!', description: 'Accesso effettuato con successo.' });
         }
       } else {
         const { error } = await signUp(email, password, username);
         if (error) {
           let message = error.message;
-          if (error.message.includes('User already registered')) {
-            message = 'Questo indirizzo email è già registrato.';
-          }
-          toast({
-            variant: 'destructive',
-            title: 'Errore di registrazione',
-            description: message
-          });
+          if (error.message.includes('User already registered')) message = 'Email già registrata.';
+          toast({ variant: 'destructive', title: 'Errore di registrazione', description: message });
         } else {
           setShowVerificationDialog(true);
         }
@@ -105,172 +74,113 @@ const Auth = () => {
     }
   };
 
+  const handleForgotPassword = async () => {
+    const emailResult = emailSchema.safeParse(resetEmail);
+    if (!emailResult.success) {
+      toast({ variant: 'destructive', title: 'Errore', description: 'Inserisci un email valida' });
+      return;
+    }
+    setIsResetting(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast({ title: 'Email inviata!', description: 'Controlla la tua casella per reimpostare la password.' });
+      setShowForgotPassword(false);
+      setResetEmail('');
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Errore', description: error.message });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6 relative overflow-hidden">
-      {/* Background decorations */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-to-br from-primary/10 via-transparent to-transparent rounded-full" />
         <div className="absolute -bottom-1/2 -left-1/2 w-full h-full bg-gradient-to-tr from-primary/5 via-transparent to-transparent rounded-full" />
       </div>
 
-      {/* Email Verification Dialog */}
       <Dialog open={showVerificationDialog} onOpenChange={setShowVerificationDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <div className="mx-auto h-16 w-16 rounded-2xl bg-success/10 flex items-center justify-center mb-4">
-              <CheckCircle2 className="h-8 w-8 text-success" />
-            </div>
+            <div className="mx-auto h-16 w-16 rounded-2xl bg-success/10 flex items-center justify-center mb-4"><CheckCircle2 className="h-8 w-8 text-success" /></div>
             <DialogTitle className="text-center text-xl">Account creato!</DialogTitle>
             <DialogDescription className="text-center space-y-2">
-              <p>
-                Abbiamo inviato un'email di verifica a <strong>{email}</strong>.
-              </p>
-              <p>
-                Per completare la registrazione, clicca sul link che trovi nell'email.
-              </p>
+              <p>Abbiamo inviato un'email di verifica a <strong>{email}</strong>.</p>
+              <p>Clicca sul link nell'email per completare la registrazione.</p>
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 pt-4">
-            <Button onClick={() => {
-              setShowVerificationDialog(false);
-              setIsLogin(true);
-              setEmail('');
-              setPassword('');
-              setUsername('');
-            }}>
-              Ho verificato, accedi
-            </Button>
-            <Button variant="outline" onClick={() => setShowVerificationDialog(false)}>
-              Lo farò più tardi
+            <Button onClick={() => { setShowVerificationDialog(false); setIsLogin(true); setEmail(''); setPassword(''); setUsername(''); }}>Ho verificato, accedi</Button>
+            <Button variant="outline" onClick={() => setShowVerificationDialog(false)}>Lo farò più tardi</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Password dimenticata?</DialogTitle>
+            <DialogDescription>Inserisci la tua email per ricevere un link per reimpostare la password.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="reset-email">Email</Label>
+              <Input id="reset-email" type="email" placeholder="nome@esempio.com" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} />
+            </div>
+            <Button onClick={handleForgotPassword} disabled={isResetting} className="w-full">
+              {isResetting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Invio in corso...</> : 'Invia link di reset'}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
       <div className="w-full max-w-md relative z-10">
-        <Link 
-          to="/" 
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8 group"
-        >
-          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-          Torna alla home
+        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8 group">
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />Torna alla home
         </Link>
 
         <Card className="border-2 shadow-xl animate-scale-in">
           <CardHeader className="text-center pb-2">
-            <div className="mx-auto h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-              <Warehouse className="h-8 w-8 text-primary" />
-            </div>
-            <CardTitle className="text-2xl">
-              {isLogin ? 'Bentornato!' : 'Crea il tuo account'}
-            </CardTitle>
-            <CardDescription>
-              {isLogin 
-                ? 'Accedi per gestire le tue dispense' 
-                : 'Inizia a organizzare le tue scorte'
-              }
-            </CardDescription>
+            <div className="mx-auto h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4"><Warehouse className="h-8 w-8 text-primary" /></div>
+            <CardTitle className="text-2xl">{isLogin ? 'Bentornato!' : 'Crea il tuo account'}</CardTitle>
+            <CardDescription>{isLogin ? 'Accedi per gestire le tue dispense' : 'Inizia a organizzare le tue scorte'}</CardDescription>
           </CardHeader>
-
           <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               {!isLogin && (
                 <div className="space-y-2">
                   <Label htmlFor="username">Username</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="username"
-                      type="text"
-                      placeholder="Il tuo username"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
+                  <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="username" type="text" placeholder="Il tuo username" value={username} onChange={(e) => setUsername(e.target.value)} className="pl-10" /></div>
                 </div>
               )}
-
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="nome@esempio.com"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      if (errors.email) setErrors({ ...errors, email: undefined });
-                    }}
-                    className={`pl-10 ${errors.email ? 'border-destructive' : ''}`}
-                  />
-                </div>
-                {errors.email && (
-                  <p className="text-sm text-destructive">{errors.email}</p>
-                )}
+                <div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="email" type="email" placeholder="nome@esempio.com" value={email} onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors({ ...errors, email: undefined }); }} className={`pl-10 ${errors.email ? 'border-destructive' : ''}`} /></div>
+                {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      if (errors.password) setErrors({ ...errors, password: undefined });
-                    }}
-                    className={`pl-10 ${errors.password ? 'border-destructive' : ''}`}
-                  />
-                </div>
-                {errors.password && (
-                  <p className="text-sm text-destructive">{errors.password}</p>
-                )}
+                <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors({ ...errors, password: undefined }); }} className={`pl-10 ${errors.password ? 'border-destructive' : ''}`} /></div>
+                {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
               </div>
-
-              <Button 
-                type="submit" 
-                className="w-full mt-6" 
-                size="lg"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {isLogin ? 'Accesso in corso...' : 'Registrazione in corso...'}
-                  </>
-                ) : (
-                  isLogin ? 'Accedi' : 'Crea account'
-                )}
+              {isLogin && (
+                <button type="button" onClick={() => setShowForgotPassword(true)} className="text-sm text-primary hover:underline">Password dimenticata?</button>
+              )}
+              <Button type="submit" className="w-full mt-6" size="lg" disabled={isLoading}>
+                {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isLogin ? 'Accesso in corso...' : 'Registrazione in corso...'}</> : isLogin ? 'Accedi' : 'Crea account'}
               </Button>
             </form>
-
             <div className="mt-6 text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setErrors({});
-                }}
-                className="text-sm text-muted-foreground hover:text-primary transition-colors"
-              >
-                {isLogin 
-                  ? "Non hai un account? Registrati" 
-                  : "Hai già un account? Accedi"
-                }
+              <button type="button" onClick={() => { setIsLogin(!isLogin); setErrors({}); }} className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                {isLogin ? "Non hai un account? Registrati" : "Hai già un account? Accedi"}
               </button>
             </div>
           </CardContent>

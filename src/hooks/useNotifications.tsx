@@ -46,8 +46,10 @@ export function useNotifications() {
   useEffect(() => {
     if (!user) return;
 
+    console.log("[Notifications] Setting up realtime subscription for user:", user.id);
+
     const channel = supabase
-      .channel("notifications-realtime")
+      .channel(`notifications-${user.id}`)
       .on(
         "postgres_changes",
         {
@@ -57,14 +59,58 @@ export function useNotifications() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
+          console.log("[Notifications] Received new notification:", payload);
           const newNotification = payload.new as Notification;
           setNotifications((prev) => [newNotification, ...prev]);
           setUnreadCount((prev) => prev + 1);
         }
       )
-      .subscribe();
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log("[Notifications] Notification updated:", payload);
+          const updatedNotification = payload.new as Notification;
+          setNotifications((prev) =>
+            prev.map((n) =>
+              n.id === updatedNotification.id ? updatedNotification : n
+            )
+          );
+          // Recalculate unread count
+          setNotifications((prev) => {
+            setUnreadCount(prev.filter((n) => !n.read).length);
+            return prev;
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log("[Notifications] Notification deleted:", payload);
+          const deletedId = payload.old?.id;
+          if (deletedId) {
+            setNotifications((prev) => prev.filter((n) => n.id !== deletedId));
+            setUnreadCount((prev) => Math.max(0, prev - 1));
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log("[Notifications] Subscription status:", status);
+      });
 
     return () => {
+      console.log("[Notifications] Cleaning up subscription");
       supabase.removeChannel(channel);
     };
   }, [user]);
