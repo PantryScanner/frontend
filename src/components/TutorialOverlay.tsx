@@ -72,7 +72,7 @@ export function TutorialOverlay() {
   return (
     <div className="fixed inset-0 z-[100]">
       {/* Backdrop with cutout */}
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={closeTutorial} />
+      <div className="absolute inset-0" onClick={closeTutorial} />
       
       {/* Highlight box */}
       {targetRect && !isCentered && (
