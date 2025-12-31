@@ -23,7 +23,7 @@ import { supabase } from "@/integrations/backend/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
-import { useNotifications } from "@/hooks/useNotifications";
+import { useNotificationContext } from "@/contexts/NotificationContext";
 
 interface Scanner {
   id: string;
@@ -49,7 +49,7 @@ const Dispositivi = () => {
   const [newScanner, setNewScanner] = useState({ name: "", dispensa_id: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
-  const { addNotification } = useNotifications();
+  const { addLocalNotification } = useNotificationContext();
 
   // Helper to check if scanner is online (last seen < 5 minutes ago)
   const isScannerOnline = (lastSeenAt: string | null): boolean => {
@@ -123,7 +123,7 @@ const Dispositivi = () => {
       if (error) throw error;
 
       toast.success("Dispositivo aggiunto con successo");
-      addNotification("Nuovo scanner creato", `Scanner "${newScanner.name}" è stato configurato`, "success");
+      addLocalNotification("Nuovo scanner creato", `Scanner "${newScanner.name}" è stato configurato`, "success");
       setNewScanner({ name: "", dispensa_id: "" });
       setIsAddDialogOpen(false);
       setSelectedScanner(data);
@@ -142,7 +142,7 @@ const Dispositivi = () => {
       const { error } = await supabase.from("scanners").delete().eq("id", id);
       if (error) throw error;
       toast.success("Dispositivo eliminato");
-      addNotification("Scanner eliminato", `Scanner "${name}" è stato rimosso`, "info");
+      addLocalNotification("Scanner eliminato", `Scanner "${name}" è stato rimosso`, "info");
       fetchData();
     } catch (error) {
       console.error("Error deleting scanner:", error);

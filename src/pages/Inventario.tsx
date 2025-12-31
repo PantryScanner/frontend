@@ -26,7 +26,7 @@ import { Search, Filter, Plus, Package, Loader2, Eye, Trash2, Columns, Warehouse
 import { supabase } from "@/integrations/backend/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { useNotifications } from "@/hooks/useNotifications";
+import { useNotificationContext } from "@/contexts/NotificationContext";
 import { useProductInfo } from "@/hooks/useProductInfo";
 
 interface Product {
@@ -63,7 +63,7 @@ const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
 const Inventario = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { addNotification } = useNotifications();
+  const { addLocalNotification } = useNotificationContext();
   const { fetchProductInfo } = useProductInfo();
   const [products, setProducts] = useState<ProductWithDetails[]>([]);
   const [dispense, setDispense] = useState<Dispensa[]>([]);
@@ -170,7 +170,7 @@ const Inventario = () => {
       }
 
       toast.success("Prodotto aggiunto con successo");
-      addNotification("Prodotto aggiunto", `${productName || "Prodotto"} aggiunto all'inventario`, "success");
+      addLocalNotification("Prodotto aggiunto", `${productName || "Prodotto"} aggiunto all'inventario`, "success");
       setNewProduct({ name: "", barcode: "", category: "", quantity: 1, dispensa_id: "" });
       setIsAddDialogOpen(false);
       fetchData();
@@ -190,7 +190,7 @@ const Inventario = () => {
       const { error } = await supabase.from("products").delete().eq("id", deleteProductId);
       if (error) throw error;
       toast.success("Prodotto eliminato");
-      addNotification("Prodotto eliminato", "Prodotto rimosso dall'inventario", "info");
+      addLocalNotification("Prodotto eliminato", "Prodotto rimosso dall'inventario", "info");
       fetchData();
     } catch (error) {
       console.error("Error deleting product:", error);

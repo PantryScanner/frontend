@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
+import { TutorialProvider } from "@/contexts/TutorialContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AppHeader } from "@/components/AppHeader";
@@ -19,6 +21,9 @@ import DispensaDetail from "./pages/DispensaDetail";
 import ProductDetail from "./pages/ProductDetail";
 import Dispositivi from "./pages/Dispositivi";
 import Grafici from "./pages/Grafici";
+import About from "./pages/About";
+import Scanners from "./pages/Scanners";
+import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,25 +44,32 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => (
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
-            <Route path="/inventario" element={<ProtectedRoute><AppLayout><Inventario /></AppLayout></ProtectedRoute>} />
-            <Route path="/prodotti/:id" element={<ProtectedRoute><AppLayout><ProductDetail /></AppLayout></ProtectedRoute>} />
-            <Route path="/dispense" element={<ProtectedRoute><AppLayout><Dispense /></AppLayout></ProtectedRoute>} />
-            <Route path="/dispense/:id" element={<ProtectedRoute><AppLayout><DispensaDetail /></AppLayout></ProtectedRoute>} />
-            <Route path="/dispositivi" element={<ProtectedRoute><AppLayout><Dispositivi /></AppLayout></ProtectedRoute>} />
-            <Route path="/grafici" element={<ProtectedRoute><AppLayout><Grafici /></AppLayout></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <NotificationProvider>
+        <TutorialProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/scanners" element={<Scanners />} />
+                <Route path="/pricing" element={<Pricing />} />
+                <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
+                <Route path="/inventario" element={<ProtectedRoute><AppLayout><Inventario /></AppLayout></ProtectedRoute>} />
+                <Route path="/prodotti/:id" element={<ProtectedRoute><AppLayout><ProductDetail /></AppLayout></ProtectedRoute>} />
+                <Route path="/dispense" element={<ProtectedRoute><AppLayout><Dispense /></AppLayout></ProtectedRoute>} />
+                <Route path="/dispense/:id" element={<ProtectedRoute><AppLayout><DispensaDetail /></AppLayout></ProtectedRoute>} />
+                <Route path="/dispositivi" element={<ProtectedRoute><AppLayout><Dispositivi /></AppLayout></ProtectedRoute>} />
+                <Route path="/grafici" element={<ProtectedRoute><AppLayout><Grafici /></AppLayout></ProtectedRoute>} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </TutorialProvider>
+      </NotificationProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
