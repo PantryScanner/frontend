@@ -1,12 +1,9 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { LayoutDashboard, Package, Warehouse, Cpu, BarChart3, HelpCircle, LogOut } from "lucide-react";
-import {
-  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
-  SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter, useSidebar,
-} from "@/components/ui/sidebar";
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter, useSidebar } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { useTutorial } from "@/hooks/useTutorial";
+import { useTutorialContext } from "@/contexts/TutorialContext";
 
 const menuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -19,7 +16,7 @@ const menuItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const { signOut, user } = useAuth();
-  const { startTutorial } = useTutorial();
+  const { startTutorial } = useTutorialContext();
   const navigate = useNavigate();
   const isCollapsed = state === "collapsed";
 
@@ -55,7 +52,7 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <button onClick={startTutorial} className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all hover:bg-sidebar-accent/50 w-full text-left">
+                  <button type="button" onClick={() => startTutorial()} className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all hover:bg-sidebar-accent/50 w-full text-left cursor-pointer">
                     <HelpCircle className="h-5 w-5 flex-shrink-0" />
                     {!isCollapsed && <span>Tutorial</span>}
                   </button>
