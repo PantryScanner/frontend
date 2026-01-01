@@ -95,7 +95,7 @@ const Grafici = () => {
   const [categories, setCategories] = useState<CategoryCount[]>([]);
   const [dispenseStock, setDispenseStock] = useState<DispenseStock[]>([]);
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
-  const [dateRange, setDateRange] = useState("30");
+  const [dateRange, setDateRange] = useState("7");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [dispensaFilter, setDispensaFilter] = useState("all");
   const [allCategories, setAllCategories] = useState<string[]>([]);

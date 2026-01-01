@@ -259,7 +259,7 @@ const Inventario = () => {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="category">Categoria</Label>
+                <Label htmlFor="category">Categoria (opzionale)</Label>
                 <Input id="category" placeholder="es. Pasta" value={newProduct.category} onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })} />
               </div>
               <div className="space-y-2">

@@ -133,6 +133,10 @@ const ProductDetail = () => {
     return colors[grade?.toLowerCase() || ""] || "bg-muted";
   };
 
+  const formatAllergens = (allergens: string) => {
+    return allergens.replace(/en:/g, "").trim();
+  }
+
   if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!product) return null;
 
@@ -242,7 +246,7 @@ const ProductDetail = () => {
       {product.allergens && (
         <Card className="border-warning/50">
           <CardHeader><CardTitle className="flex items-center gap-2 text-warning"><AlertTriangle className="h-5 w-5" />Allergeni</CardTitle></CardHeader>
-          <CardContent><p className="text-sm">{product.allergens}</p></CardContent>
+          <CardContent><p className="text-sm">{formatAllergens(product.allergens)}</p></CardContent>
         </Card>
       )}
 
