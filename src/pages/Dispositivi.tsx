@@ -368,9 +368,8 @@ const Dispositivi = () => {
                       Mostra QR
                     </Button>
                     <Button
-                      variant="ghost"
+                      variant="ghost-destructive"
                       size="sm"
-                      className="text-destructive hover:text-destructive"
                       onClick={() => handleDeleteScanner(scanner.id, scanner.name)}
                     >
                       <Trash2 className="h-4 w-4" />
