@@ -67,7 +67,7 @@ export function AppSidebar() {
         {user && (
           <div className="space-y-3">
             {!isCollapsed && <div className="px-2"><p className="text-sm font-medium truncate">{user.email}</p></div>}
-            <Button variant="ghost" className={`w-full justify-start gap-3 ${isCollapsed ? 'px-2' : ''}`} onClick={handleLogout}>
+            <Button variant="ghost-destructive" className={`w-full justify-start gap-3 ${isCollapsed ? 'px-2' : ''}`} onClick={handleLogout}>
               <LogOut className="h-5 w-5" />{!isCollapsed && "Esci"}
             </Button>
           </div>

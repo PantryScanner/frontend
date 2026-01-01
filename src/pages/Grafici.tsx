@@ -75,18 +75,10 @@ interface LowStockItem {
   threshold: number;
 }
 
-const CHART_COLORS = [
-  "hsl(var(--primary))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
-  "#8884d8",
-  "#82ca9d",
-  "#ffc658",
-  "#ff7300",
-  "#00C49F",
-];
+const generateColor = (index: number, total: number) => {
+  const hue = (index * (360 / Math.max(total, 1))) % 360;
+  return `hsl(${hue}, 70%, 55%)`;
+};
 
 const Grafici = () => {
   const { user } = useAuth();
@@ -173,10 +165,10 @@ const Grafici = () => {
       });
 
       setDispenseStock(
-        (dispenseData || []).map((d, idx) => ({
+        (dispenseData || []).map((d, idx, arr) => ({
           name: d.name,
           quantity: stockByDispensa[d.id] || 0,
-          color: d.color || CHART_COLORS[idx % CHART_COLORS.length],
+          color: d.color || generateColor(idx, arr.length) ,
         }))
       );
 
@@ -420,7 +412,7 @@ const Grafici = () => {
                       dataKey="value"
                     >
                       {categories.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                        <Cell key={`cell-${index}`} fill={generateColor(index, categories.length)} />
                       ))}
                     </Pie>
                     <Tooltip 
