@@ -41,6 +41,14 @@ interface Product {
 interface ProductWithDetails extends Product {
   totalQuantity: number;
   dispensaNames: string[];
+  allCategories: string[];
+}
+
+interface DispenseProduct {
+  id: string;
+  dispensa_id: string;
+  product_id: string;
+  quantity: number;
 }
 
 interface Dispensa {
@@ -106,19 +114,34 @@ const Inventario = () => {
         }
       });
 
+      // Fetch all product categories
+      const { data: allCategoriesData } = await supabase
+        .from("product_categories")
+        .select("product_id, category_name");
+
+      const productCategoriesMap: Record<string, string[]> = {};
+      (allCategoriesData || []).forEach((cat: { product_id: string; category_name: string }) => {
+        if (!productCategoriesMap[cat.product_id]) {
+          productCategoriesMap[cat.product_id] = [];
+        }
+        productCategoriesMap[cat.product_id].push(cat.category_name);
+      });
+
       const productsWithDetails: ProductWithDetails[] = (productsRes.data || []).map((p) => ({
         ...p,
         totalQuantity: productQuantities[p.id]?.total || 0,
         dispensaNames: productQuantities[p.id]?.dispenseNames || [],
+        allCategories: productCategoriesMap[p.id] || (p.category ? [p.category] : []),
       }));
 
       setProducts(productsWithDetails);
       setDispense(dispenseRes.data || []);
 
-      const uniqueCategories = [...new Set(
-        (productsRes.data || []).map((p) => p.category).filter((c): c is string => !!c)
-      )];
-      setCategories(uniqueCategories);
+      // Collect all unique categories from product_categories table
+      const allCats = new Set<string>();
+      (allCategoriesData || []).forEach((cat: { category_name: string }) => allCats.add(cat.category_name));
+      (productsRes.data || []).forEach((p) => { if (p.category) allCats.add(p.category); });
+      setCategories(Array.from(allCats).sort());
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Errore nel caricamento dei prodotti");
@@ -155,10 +178,18 @@ const Inventario = () => {
 
       if (error) throw error;
 
-      // Insert categories
-      if (productInfo?.categories && productInfo.categories.length > 0) {
+      // Insert categories (auto-generated + user category if provided)
+      const categoriesToInsert: string[] = [];
+      if (productInfo?.categories) {
+        categoriesToInsert.push(...productInfo.categories);
+      }
+      // Add user-entered category if it's not already in the list
+      if (newProduct.category.trim() && !categoriesToInsert.includes(newProduct.category.trim())) {
+        categoriesToInsert.push(newProduct.category.trim());
+      }
+      if (categoriesToInsert.length > 0) {
         await supabase.from("product_categories").insert(
-          productInfo.categories.map((cat) => ({ product_id: insertedProduct.id, category_name: cat }))
+          categoriesToInsert.map((cat) => ({ product_id: insertedProduct.id, category_name: cat }))
         );
       }
 
@@ -201,9 +232,12 @@ const Inventario = () => {
   };
 
   const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.barcode?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
+    const searchLower = searchQuery.toLowerCase();
+    const matchesSearch = 
+      product.name?.toLowerCase().includes(searchLower) ||
+      product.barcode?.toLowerCase().includes(searchLower) ||
+      product.allCategories.some((cat) => cat.toLowerCase().includes(searchLower));
+    const matchesCategory = categoryFilter === "all" || product.allCategories.includes(categoryFilter);
     return matchesSearch && matchesCategory;
   });
 
@@ -329,11 +363,13 @@ const Inventario = () => {
                     <TableRow key={product.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => navigate(`/prodotti/${product.id}`)}>
                       {isColumnVisible("name") && <TableCell className="font-medium">{product.name || <span className="text-muted-foreground italic">Senza nome</span>}</TableCell>}
                       {isColumnVisible("barcode") && <TableCell><code className="text-xs bg-muted px-2 py-1 rounded">{product.barcode || "—"}</code></TableCell>}
-                      {isColumnVisible("category") && <TableCell>{product.category ? <Badge variant="secondary">{product.category}</Badge> : "—"}</TableCell>}
+                      {isColumnVisible("category") && <TableCell>{product.allCategories.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 max-w-xs">{product.allCategories.slice(0, 3).map((cat) => <Badge key={cat} variant="secondary" className="text-xs">{cat}</Badge>)}{product.allCategories.length > 3 && <Badge variant="outline" className="text-xs">+{product.allCategories.length - 3}</Badge>}</div>
+                      ) : "—"}</TableCell>}
                       {isColumnVisible("dispensa") && <TableCell>{product.dispensaNames.length > 0 ? (
                         <div className="flex flex-wrap gap-1">{product.dispensaNames.map((name) => <Badge key={name} variant="outline" className="text-xs"><Warehouse className="h-3 w-3 mr-1" />{name}</Badge>)}</div>
                       ) : <span className="text-muted-foreground">—</span>}</TableCell>}
-                      {isColumnVisible("quantity") && <TableCell><Badge variant={product.totalQuantity === 0 ? "destructive" : "secondary"}>{product.totalQuantity} pz</Badge></TableCell>}
+                      {isColumnVisible("quantity") && <TableCell><Badge variant={product.dispensaNames.length === 0 ? "outline" : product.totalQuantity === 0 ? "destructive" : "secondary"}>{product.dispensaNames.length === 0 ? "—" : `${product.totalQuantity} pz`}</Badge></TableCell>}
                       {isColumnVisible("date") && <TableCell className="text-muted-foreground">{new Date(product.created_at).toLocaleDateString('it-IT')}</TableCell>}
                       {isColumnVisible("actions") && <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
