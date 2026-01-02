@@ -75,7 +75,7 @@ export function AppHeader() {
             <div className="flex items-center justify-between px-4 py-3 border-b">
               <h3 className="font-semibold">Notifiche</h3>
               {notifications.length > 0 && (
-                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground" onClick={(e) => { e.preventDefault(); clearAll(); }}>
+                <Button variant="ghost-destructive" size="sm" className="text-xs text-muted-foreground" onClick={(e) => { e.preventDefault(); clearAll(); }}>
                   <Trash2 className="h-3 w-3 mr-1" />Elimina tutte
                 </Button>
               )}
