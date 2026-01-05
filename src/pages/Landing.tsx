@@ -3,13 +3,16 @@ import { Button } from '@/components/ui/button';
 import { Package, Warehouse, BarChart3, Bell, ShoppingCart, Smartphone, ArrowRight, Check, Zap, Shield, RefreshCw, Cpu, ChevronRight, Play, Users, Star, Scan, Globe, Lock, Sparkles, ChevronDown, Home, Wifi } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState, useRef, useMemo } from 'react';
-
 const Landing = () => {
-  const { user } = useAuth();
+  const {
+    user
+  } = useAuth();
   const [scrollY, setScrollY] = useState(0);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [mousePosition, setMousePosition] = useState({
+    x: 0,
+    y: 0
+  });
   const heroRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
     const handleMouseMove = (e: MouseEvent) => {
@@ -17,7 +20,7 @@ const Landing = () => {
         const rect = heroRef.current.getBoundingClientRect();
         setMousePosition({
           x: (e.clientX - rect.left) / rect.width,
-          y: (e.clientY - rect.top) / rect.height,
+          y: (e.clientY - rect.top) / rect.height
         });
       }
     };
@@ -28,32 +31,72 @@ const Landing = () => {
       window.removeEventListener('mousemove', handleMouseMove);
     };
   }, []);
-
-  const features = [
-    { icon: Warehouse, title: "Gestione Dispense", description: "Organizza i tuoi prodotti in più location con sincronizzazione real-time", color: "from-primary/20 to-primary/5" },
-    { icon: Bell, title: "Notifiche Intelligenti", description: "Ricevi avvisi quando i prodotti scendono sotto la soglia impostata", color: "from-warning/20 to-warning/5" },
-    { icon: BarChart3, title: "Analytics Avanzate", description: "Monitora consumi e trend con grafici interattivi e report dettagliati", color: "from-success/20 to-success/5" },
-    { icon: ShoppingCart, title: "Lista della Spesa", description: "Genera automaticamente la lista della spesa basata sulle scorte", color: "from-primary/20 to-primary/5" },
-    { icon: Smartphone, title: "App Mobile", description: "Accedi alle tue dispense ovunque con la nostra Progressive Web App", color: "from-destructive/20 to-destructive/5" },
-    { icon: RefreshCw, title: "Sync Automatico", description: "I dispositivi IoT aggiornano l'inventario in tempo reale", color: "from-success/20 to-success/5" }
-  ];
-
+  const features = [{
+    icon: Warehouse,
+    title: "Gestione Dispense",
+    description: "Organizza i tuoi prodotti in più location con sincronizzazione real-time",
+    color: "from-primary/20 to-primary/5"
+  }, {
+    icon: Bell,
+    title: "Notifiche Intelligenti",
+    description: "Ricevi avvisi quando i prodotti scendono sotto la soglia impostata",
+    color: "from-warning/20 to-warning/5"
+  }, {
+    icon: BarChart3,
+    title: "Analytics Avanzate",
+    description: "Monitora consumi e trend con grafici interattivi e report dettagliati",
+    color: "from-success/20 to-success/5"
+  }, {
+    icon: ShoppingCart,
+    title: "Lista della Spesa",
+    description: "Genera automaticamente la lista della spesa basata sulle scorte",
+    color: "from-primary/20 to-primary/5"
+  }, {
+    icon: Smartphone,
+    title: "App Mobile",
+    description: "Accedi alle tue dispense ovunque con la nostra Progressive Web App",
+    color: "from-destructive/20 to-destructive/5"
+  }, {
+    icon: RefreshCw,
+    title: "Sync Automatico",
+    description: "I dispositivi IoT aggiornano l'inventario in tempo reale",
+    color: "from-success/20 to-success/5"
+  }];
   const benefits = ["Zero sprechi alimentari", "Risparmio di tempo", "Gestione centralizzata", "Report automatici"];
-  const stats = [
-    { value: "10K+", label: "Utenti Attivi", suffix: "" },
-    { value: "500K+", label: "Prodotti Tracciati", suffix: "" },
-    { value: "30%", label: "Risparmio Medio", suffix: "" },
-    { value: "99.9%", label: "Uptime", suffix: "" }
-  ];
-
-  const testimonials = [
-    { name: "Marco R.", role: "Ristoratore", text: "PantryOS ha rivoluzionato la gestione del mio magazzino. Risparmio ore ogni settimana!", avatar: "M" },
-    { name: "Laura B.", role: "Famiglia", text: "Finalmente non butto più cibo scaduto. Le notifiche sono perfette!", avatar: "L" },
-    { name: "Giovanni T.", role: "Hotel Manager", text: "Gestire 50 dispense non è mai stato così semplice. Consiglio vivamente.", avatar: "G" }
-  ];
-
+  const stats = [{
+    value: "10K+",
+    label: "Utenti Attivi",
+    suffix: ""
+  }, {
+    value: "500K+",
+    label: "Prodotti Tracciati",
+    suffix: ""
+  }, {
+    value: "30%",
+    label: "Risparmio Medio",
+    suffix: ""
+  }, {
+    value: "99.9%",
+    label: "Uptime",
+    suffix: ""
+  }];
+  const testimonials = [{
+    name: "Marco R.",
+    role: "Ristoratore",
+    text: "PantryOS ha rivoluzionato la gestione del mio magazzino. Risparmio ore ogni settimana!",
+    avatar: "M"
+  }, {
+    name: "Laura B.",
+    role: "Famiglia",
+    text: "Finalmente non butto più cibo scaduto. Le notifiche sono perfette!",
+    avatar: "L"
+  }, {
+    name: "Giovanni T.",
+    role: "Hotel Manager",
+    text: "Gestire 50 dispense non è mai stato così semplice. Consiglio vivamente.",
+    avatar: "G"
+  }];
   const year = new Date().getFullYear();
-
   const particles = useMemo(() => {
     return [...Array(20)].map((_, i) => ({
       id: i,
@@ -63,9 +106,7 @@ const Landing = () => {
       duration: `${2 + Math.random() * 3}s`
     }));
   }, []);
-
-  return (
-    <div className="min-h-screen bg-background overflow-hidden">
+  return <div className="min-h-screen bg-background overflow-hidden">
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/60 backdrop-blur-xl border-b border-border/50">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
@@ -90,17 +131,13 @@ const Landing = () => {
             </Link>
           </div>
           <div className="flex items-center gap-3">
-            {user ? (
-              <>
+            {user ? <>
                 <Link to="/dashboard"><Button variant="ghost">Dashboard</Button></Link>
                 <Link to="/dashboard"><Button className="shadow-glow">Il mio account</Button></Link>
-              </>
-            ) : (
-              <>
+              </> : <>
                 <Link to="/auth"><Button variant="ghost">Accedi</Button></Link>
                 <Link to="/auth"><Button className="shadow-glow">Inizia Gratis</Button></Link>
-              </>
-            )}
+              </>}
           </div>
         </div>
       </nav>
@@ -109,41 +146,33 @@ const Landing = () => {
       <section ref={heroRef} className="relative min-h-screen flex items-center pt-16 overflow-hidden">
         {/* Animated background */}
         <div className="absolute inset-0">
-          <div 
-            className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-br from-primary/30 via-primary/10 to-transparent rounded-full blur-3xl"
-            style={{ transform: `translate(${mousePosition.x * 50}px, ${mousePosition.y * 50}px)` }}
-          />
-          <div 
-            className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-success/20 via-success/5 to-transparent rounded-full blur-3xl"
-            style={{ transform: `translate(${-mousePosition.x * 30}px, ${-mousePosition.y * 30}px)` }}
-          />
+          <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-br from-primary/30 via-primary/10 to-transparent rounded-full blur-3xl" style={{
+          transform: `translate(${mousePosition.x * 50}px, ${mousePosition.y * 50}px)`
+        }} />
+          <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-success/20 via-success/5 to-transparent rounded-full blur-3xl" style={{
+          transform: `translate(${-mousePosition.x * 30}px, ${-mousePosition.y * 30}px)`
+        }} />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-gradient-radial from-primary/5 to-transparent rounded-full animate-pulse" />
         </div>
         
         {/* Grid pattern */}
-        <div className="absolute inset-0 opacity-[0.02]" style={{ 
-          backgroundImage: 'linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)', 
-          backgroundSize: '60px 60px' 
-        }} />
+        <div className="absolute inset-0 opacity-[0.02]" style={{
+        backgroundImage: 'linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)',
+        backgroundSize: '60px 60px'
+      }} />
 
         {/* Floating particles */}
         <div className="absolute inset-0 pointer-events-none">
-          {particles.map((p) => (
-            <div
-              key={p.id}
-              className="absolute w-2 h-2 bg-primary/30 rounded-full animate-pulse"
-              style={{
-                left: p.left,
-                top: p.top,
-                animationDelay: p.delay,
-                animationDuration: p.duration
-              }}
-            />
-          ))}
+          {particles.map(p => <div key={p.id} className="absolute w-2 h-2 bg-primary/30 rounded-full animate-pulse" style={{
+          left: p.left,
+          top: p.top,
+          animationDelay: p.delay,
+          animationDuration: p.duration
+        }} />)}
         </div>
 
         <div className="container mx-auto px-6 relative z-10">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
+          <div className="grid lg:grid-cols-2 gap-16 items-center mt-[40px]">
             <div className="space-y-8">
               <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 text-sm font-medium text-primary animate-fade-in backdrop-blur-sm">
                 <Sparkles className="h-4 w-4 animate-pulse" />
@@ -151,19 +180,25 @@ const Landing = () => {
                 <span className="bg-primary/20 px-2 py-0.5 rounded-full text-xs">Nuovo</span>
               </div>
               
-              <h1 className="text-5xl lg:text-7xl font-bold leading-[1.1] animate-fade-in" style={{ animationDelay: '0.1s' }}>
+              <h1 className="text-5xl lg:text-7xl font-bold leading-[1.1] animate-fade-in" style={{
+              animationDelay: '0.1s'
+            }}>
                 Il tuo inventario,
                 <span className="block mt-2 bg-gradient-to-r from-primary via-primary to-success bg-clip-text text-transparent">
                   sotto controllo.
                 </span>
               </h1>
               
-              <p className="text-xl text-muted-foreground max-w-xl animate-fade-in leading-relaxed" style={{ animationDelay: '0.2s' }}>
+              <p className="text-xl text-muted-foreground max-w-xl animate-fade-in leading-relaxed" style={{
+              animationDelay: '0.2s'
+            }}>
                 Monitora le scorte della tua casa o attività con dispositivi IoT intelligenti. 
                 Ricevi notifiche, genera liste della spesa e analizza i consumi in tempo reale.
               </p>
               
-              <div className="flex flex-col sm:flex-row gap-4 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+              <div className="flex flex-col sm:flex-row gap-4 animate-fade-in" style={{
+              animationDelay: '0.3s'
+            }}>
                 <Link to="/auth">
                   <Button size="lg" className="w-full sm:w-auto text-lg px-8 py-6 shadow-glow hover:shadow-lg transition-all group bg-gradient-to-r from-primary to-primary/80">
                     Inizia Gratis
@@ -178,27 +213,28 @@ const Landing = () => {
                 </Link>
               </div>
               
-              <div className="flex flex-wrap gap-4 pt-4 animate-fade-in" style={{ animationDelay: '0.4s' }}>
-                {benefits.map((benefit, index) => (
-                  <div key={index} className="flex items-center gap-2 text-muted-foreground bg-card/50 backdrop-blur-sm px-3 py-2 rounded-full border border-border/50">
+              <div style={{
+              animationDelay: '0.4s'
+            }} className="flex flex-wrap gap-4 pt-4 animate-fade-in mb-[30px]">
+                {benefits.map((benefit, index) => <div key={index} className="flex items-center gap-2 text-muted-foreground bg-card/50 backdrop-blur-sm px-3 py-2 rounded-full border border-border/50">
                     <div className="h-5 w-5 rounded-full bg-primary/20 flex items-center justify-center">
                       <Check className="h-3 w-3 text-primary" />
                     </div>
                     <span className="text-sm font-medium">{benefit}</span>
-                  </div>
-                ))}
+                  </div>)}
               </div>
             </div>
 
             {/* Hero visual */}
-            <div className="relative hidden lg:block animate-fade-in" style={{ animationDelay: '0.5s' }}>
+            <div className="relative hidden lg:block animate-fade-in" style={{
+            animationDelay: '0.5s'
+          }}>
               {/* Main card */}
               <div className="relative">
                 {/* Floating cards */}
-                <div 
-                  className="absolute -top-8 -left-8 w-52 h-36 bg-card/80 backdrop-blur-xl border rounded-2xl shadow-2xl p-5 z-20"
-                  style={{ animation: 'float 4s ease-in-out infinite' }}
-                >
+                <div className="absolute -top-8 -left-8 w-52 h-36 bg-card/80 backdrop-blur-xl border rounded-2xl shadow-2xl p-5 z-20" style={{
+                animation: 'float 4s ease-in-out infinite'
+              }}>
                   <div className="flex items-center gap-3 mb-4">
                     <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
                       <Package className="h-6 w-6 text-primary" />
@@ -213,10 +249,10 @@ const Landing = () => {
                   </div>
                 </div>
 
-                <div 
-                  className="absolute top-1/3 -right-4 w-44 h-32 bg-card/80 backdrop-blur-xl border rounded-2xl shadow-2xl p-4 z-20"
-                  style={{ animation: 'float 5s ease-in-out infinite', animationDelay: '1s' }}
-                >
+                <div className="absolute top-1/3 -right-4 w-44 h-32 bg-card/80 backdrop-blur-xl border rounded-2xl shadow-2xl p-4 z-20" style={{
+                animation: 'float 5s ease-in-out infinite',
+                animationDelay: '1s'
+              }}>
                   <div className="flex items-center gap-2 mb-3">
                     <div className="h-10 w-10 rounded-full bg-success/20 flex items-center justify-center">
                       <Shield className="h-5 w-5 text-success" />
@@ -232,10 +268,10 @@ const Landing = () => {
                   <p className="text-xs text-muted-foreground">4 dispositivi online</p>
                 </div>
 
-                <div 
-                  className="absolute -bottom-4 left-1/4 w-56 h-28 bg-card/80 backdrop-blur-xl border rounded-2xl shadow-2xl p-4 z-20"
-                  style={{ animation: 'float 4.5s ease-in-out infinite', animationDelay: '0.5s' }}
-                >
+                <div className="absolute -bottom-4 left-1/4 w-56 h-28 bg-card/80 backdrop-blur-xl border rounded-2xl shadow-2xl p-4 z-20" style={{
+                animation: 'float 4.5s ease-in-out infinite',
+                animationDelay: '0.5s'
+              }}>
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-medium flex items-center gap-2">
                       <Bell className="h-4 w-4 text-warning" />
@@ -275,8 +311,12 @@ const Landing = () => {
                       {/* Mock content */}
                       <div className="flex-1 grid grid-cols-2 gap-4">
                         <div className="bg-muted/50 rounded-xl p-4 animate-pulse" />
-                        <div className="bg-muted/50 rounded-xl p-4 animate-pulse" style={{ animationDelay: '0.2s' }} />
-                        <div className="col-span-2 bg-muted/50 rounded-xl p-4 animate-pulse" style={{ animationDelay: '0.4s' }} />
+                        <div className="bg-muted/50 rounded-xl p-4 animate-pulse" style={{
+                        animationDelay: '0.2s'
+                      }} />
+                        <div className="col-span-2 bg-muted/50 rounded-xl p-4 animate-pulse" style={{
+                        animationDelay: '0.4s'
+                      }} />
                       </div>
                     </div>
                   </div>
@@ -298,9 +338,7 @@ const Landing = () => {
         <div className="container mx-auto px-6">
           <p className="text-center text-sm text-muted-foreground mb-6">Scelto da aziende e famiglie in tutta Italia</p>
           <div className="flex items-center justify-center gap-12 flex-wrap opacity-50">
-            {['Ristoranti', 'Hotel', 'Supermercati', 'Famiglie', 'Magazzini'].map((item, idx) => (
-              <div key={idx} className="text-xl font-bold text-muted-foreground">{item}</div>
-            ))}
+            {['Ristoranti', 'Hotel', 'Supermercati', 'Famiglie', 'Magazzini'].map((item, idx) => <div key={idx} className="text-xl font-bold text-muted-foreground">{item}</div>)}
           </div>
         </div>
       </section>
@@ -309,18 +347,14 @@ const Landing = () => {
       <section className="py-20 bg-gradient-to-b from-background to-muted/30">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div 
-                key={index} 
-                className="text-center p-6 rounded-2xl bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-colors animate-fade-in group"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
+            {stats.map((stat, index) => <div key={index} className="text-center p-6 rounded-2xl bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-colors animate-fade-in group" style={{
+            animationDelay: `${index * 0.1}s`
+          }}>
                 <p className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent group-hover:scale-105 transition-transform inline-block">
                   {stat.value}
                 </p>
                 <p className="text-muted-foreground mt-2">{stat.label}</p>
-              </div>
-            ))}
+              </div>)}
           </div>
         </div>
       </section>
@@ -340,12 +374,9 @@ const Landing = () => {
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature, index) => (
-              <div 
-                key={index} 
-                className="group relative bg-card border rounded-2xl p-8 hover:shadow-glow transition-all duration-500 hover:-translate-y-2 animate-fade-in overflow-hidden"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
+            {features.map((feature, index) => <div key={index} className="group relative bg-card border rounded-2xl p-8 hover:shadow-glow transition-all duration-500 hover:-translate-y-2 animate-fade-in overflow-hidden" style={{
+            animationDelay: `${index * 0.1}s`
+          }}>
                 <div className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
                 <div className="relative">
                   <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300">
@@ -354,8 +385,7 @@ const Landing = () => {
                   <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
                   <p className="text-muted-foreground">{feature.description}</p>
                 </div>
-              </div>
-            ))}
+              </div>)}
           </div>
         </div>
       </section>
@@ -376,12 +406,24 @@ const Landing = () => {
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">Inizia in meno di 5 minuti</p>
           </div>
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {[
-              { step: 1, title: "Crea le dispense", desc: "Organizza i tuoi spazi di stoccaggio virtuali", icon: Warehouse },
-              { step: 2, title: "Collega lo scanner", desc: "Configura i dispositivi IoT in 30 secondi", icon: Scan },
-              { step: 3, title: "Scansiona e monitora", desc: "Traccia automaticamente le scorte in tempo reale", icon: BarChart3 }
-            ].map((item, index) => (
-              <div key={index} className="text-center animate-fade-in relative" style={{ animationDelay: `${index * 0.2}s` }}>
+            {[{
+            step: 1,
+            title: "Crea le dispense",
+            desc: "Organizza i tuoi spazi di stoccaggio virtuali",
+            icon: Warehouse
+          }, {
+            step: 2,
+            title: "Collega lo scanner",
+            desc: "Configura i dispositivi IoT in 30 secondi",
+            icon: Scan
+          }, {
+            step: 3,
+            title: "Scansiona e monitora",
+            desc: "Traccia automaticamente le scorte in tempo reale",
+            icon: BarChart3
+          }].map((item, index) => <div key={index} className="text-center animate-fade-in relative" style={{
+            animationDelay: `${index * 0.2}s`
+          }}>
                 <div className="relative inline-block mb-6">
                   <div className="h-24 w-24 rounded-2xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground flex items-center justify-center mx-auto shadow-glow">
                     <item.icon className="h-10 w-10" />
@@ -392,11 +434,8 @@ const Landing = () => {
                 </div>
                 <h3 className="text-xl font-semibold mb-3">{item.title}</h3>
                 <p className="text-muted-foreground">{item.desc}</p>
-                {index < 2 && (
-                  <ChevronRight className="hidden md:block absolute top-12 -right-4 h-8 w-8 text-primary/30" />
-                )}
-              </div>
-            ))}
+                {index < 2 && <ChevronRight className="hidden md:block absolute top-12 -right-4 h-8 w-8 text-primary/30" />}
+              </div>)}
           </div>
         </div>
       </section>
@@ -412,16 +451,11 @@ const Landing = () => {
             <h2 className="text-4xl lg:text-5xl font-bold mb-4">Cosa dicono i nostri utenti</h2>
           </div>
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {testimonials.map((testimonial, index) => (
-              <div 
-                key={index} 
-                className="bg-card border rounded-2xl p-8 hover:shadow-glow transition-all animate-fade-in"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
+            {testimonials.map((testimonial, index) => <div key={index} className="bg-card border rounded-2xl p-8 hover:shadow-glow transition-all animate-fade-in" style={{
+            animationDelay: `${index * 0.1}s`
+          }}>
                 <div className="flex items-center gap-1 mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-4 w-4 fill-primary text-primary" />
-                  ))}
+                  {[...Array(5)].map((_, i) => <Star key={i} className="h-4 w-4 fill-primary text-primary" />)}
                 </div>
                 <p className="text-muted-foreground mb-6 italic">"{testimonial.text}"</p>
                 <div className="flex items-center gap-3">
@@ -433,8 +467,7 @@ const Landing = () => {
                     <p className="text-sm text-muted-foreground">{testimonial.role}</p>
                   </div>
                 </div>
-              </div>
-            ))}
+              </div>)}
           </div>
         </div>
       </section>
@@ -448,10 +481,9 @@ const Landing = () => {
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-success/20" />
                 <Cpu className="h-32 w-32 text-primary/30" />
               </div>
-              <div 
-                className="absolute -top-4 -right-4 bg-card/80 backdrop-blur-xl border rounded-xl shadow-lg p-4"
-                style={{ animation: 'float 3s ease-in-out infinite' }}
-              >
+              <div className="absolute -top-4 -right-4 bg-card/80 backdrop-blur-xl border rounded-xl shadow-lg p-4" style={{
+              animation: 'float 3s ease-in-out infinite'
+            }}>
                 <div className="flex items-center gap-2">
                   <div className="h-3 w-3 rounded-full bg-success animate-pulse" />
                   <span className="text-sm font-medium">Online</span>
@@ -469,18 +501,21 @@ const Landing = () => {
                 Basta una scansione per aggiornare l'inventario.
               </p>
               <div className="space-y-4 mb-8">
-                {[
-                  { icon: Wifi, text: "Connessione WiFi automatica" },
-                  { icon: Lock, text: "Batteria a lunga durata" },
-                  { icon: Zap, text: "Configurazione in 30 secondi" }
-                ].map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-3">
+                {[{
+                icon: Wifi,
+                text: "Connessione WiFi automatica"
+              }, {
+                icon: Lock,
+                text: "Batteria a lunga durata"
+              }, {
+                icon: Zap,
+                text: "Configurazione in 30 secondi"
+              }].map((item, idx) => <div key={idx} className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                       <item.icon className="h-5 w-5 text-primary" />
                     </div>
                     <span className="font-medium">{item.text}</span>
-                  </div>
-                ))}
+                  </div>)}
               </div>
               <Link to="/scanners">
                 <Button size="lg" className="gap-2 shadow-glow">
@@ -512,7 +547,7 @@ const Landing = () => {
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link to="/auth">
-                  <Button size="lg" className="text-lg px-10 py-6 shadow-glow group">
+                  <Button size="lg" className="text-lg px-10 py-6 shadow-glow group text-center">
                     Crea il tuo account gratuito
                     <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   </Button>
@@ -586,8 +621,6 @@ const Landing = () => {
           50% { transform: translateY(-10px); }
         }
       `}</style>
-    </div>
-  );
+    </div>;
 };
-
 export default Landing;
