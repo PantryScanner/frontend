@@ -48,7 +48,6 @@ Deno.serve(async (req) => {
 
     // 3. Gestione Prodotto (Trova o Crea con dati OpenFoodFacts)
     let productId: string
-
     const { data: existingProduct } = await supabase
       .from('products')
       .select('id')
@@ -59,7 +58,7 @@ Deno.serve(async (req) => {
     if (existingProduct) {
       productId = existingProduct.id
     } else {
-      // Recupero dati da OpenFoodFacts solo se il prodotto è nuovo
+      // Recupero dati da OpenFoodFacts
       let productName = "Nuovo Prodotto";
       let imageUrl = null;
       let brand = null;
@@ -95,46 +94,56 @@ Deno.serve(async (req) => {
       productId = newProduct.id
     }
 
-    // 4. Aggiorna quantità nella dispensa
-    const { data: existingEntry } = await supabase
-      .from('dispense_products')
-      .select('id, quantity')
-      .eq('dispensa_id', scanner.dispensa_id)
-      .eq('product_id', productId)
-      .maybeSingle()
+    // 2. Aggiornamento Quantità (Solo se c'è una dispensa assegnata)
+    if (scanner.dispensa_id) {
+      const { data: existingEntry } = await supabase
+        .from('dispense_products')
+        .select('id, quantity')
+        .eq('dispensa_id', scanner.dispensa_id)
+        .eq('product_id', productId)
+        .maybeSingle()
 
-    if (existingEntry) {
-      const newQty = action === 'add' ? existingEntry.quantity + quantity : Math.max(0, existingEntry.quantity - quantity)
-      await supabase.from('dispense_products').update({ quantity: newQty, last_scanned_at: new Date().toISOString() }).eq('id', existingEntry.id)
-    } else {
-      await supabase.from('dispense_products').insert({
-        dispensa_id: scanner.dispensa_id,
-        product_id: productId,
-        quantity: action === 'add' ? quantity : 0,
-        last_scanned_at: new Date().toISOString()
-      })
+      if (existingEntry) {
+        const newQty = action === 'add' ? existingEntry.quantity + quantity : Math.max(0, existingEntry.quantity - quantity)
+        await supabase.from('dispense_products').update({ quantity: newQty, last_scanned_at: new Date().toISOString() }).eq('id', existingEntry.id)
+      } else {
+        await supabase.from('dispense_products').insert({
+          dispensa_id: scanner.dispensa_id,
+          product_id: productId,
+          quantity: action === 'add' ? quantity : 0,
+          last_scanned_at: new Date().toISOString()
+        })
+      }
     }
 
-    // 5. Log e Notifica
+    // 3. Log e Notifica (Gestiscono dispensa nulla)
     await supabase.from('scan_logs').insert({
       scanner_id: scanner.id,
-      dispensa_id: scanner.dispensa_id,
+      dispensa_id: scanner.dispensa_id || null,
       product_id: productId,
       barcode,
       action,
       quantity
     })
 
-    const { data: dispensa } = await supabase.from('dispense').select('name').eq('id', scanner.dispensa_id).single()
+    let locationName = "inventario generale";
+    if (scanner.dispensa_id) {
+      const { data: dispensa } = await supabase.from('dispense').select('name').eq('id', scanner.dispensa_id).single()
+      if (dispensa) locationName = dispensa.name;
+    }
 
     await supabase.from('notifications').insert({
       user_id: scanner.user_id,
-      title: action === 'add' ? 'Prodotto aggiunto' : 'Prodotto rimosso',
-      message: `${quantity} ${action === 'add' ? 'aggiunto' : 'rimosso'} in ${dispensa?.name || 'dispensa'}`,
+      title: action === 'add' ? 'Prodotto rilevato' : 'Prodotto rimosso',
+      message: `${quantity} x ${barcode} rilevato in ${locationName}${!scanner.dispensa_id ? ' (Nessuna dispensa assegnata)' : ''}`,
       type: 'scanner'
     })
 
-    return new Response(JSON.stringify({ success: true, productId }), { 
+    return new Response(JSON.stringify({ 
+      success: true, 
+      productId, 
+      dispensa_assigned: !!scanner.dispensa_id 
+    }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     })
 
