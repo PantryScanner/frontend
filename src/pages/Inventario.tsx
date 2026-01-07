@@ -203,11 +203,20 @@ const Inventario = () => {
         );
       }
 
-      // Add to dispensa if selected
-      if (newProduct.dispensa_id && newProduct.dispensa_id !== "none") {
-        await supabase.from("dispense_products").insert({
-          dispensa_id: newProduct.dispensa_id, product_id: insertedProduct.id, quantity: newProduct.quantity,
+      // Add to dispensa if selected (must be a valid UUID, not empty or "none")
+      const hasValidDispensa = newProduct.dispensa_id && 
+        newProduct.dispensa_id !== "none" && 
+        newProduct.dispensa_id.length > 10;
+        
+      if (hasValidDispensa) {
+        const { error: dpError } = await supabase.from("dispense_products").insert({
+          dispensa_id: newProduct.dispensa_id, 
+          product_id: insertedProduct.id, 
+          quantity: newProduct.quantity,
         });
+        if (dpError) {
+          console.error("Error adding to dispensa:", dpError);
+        }
       }
 
       toast.success("Prodotto aggiunto con successo");
@@ -392,7 +401,7 @@ const Inventario = () => {
                       {isColumnVisible("dispensa") && <TableCell>{product.dispensaNames.length > 0 ? (
                         <div className="flex flex-wrap gap-1">{product.dispensaNames.map((name) => <Badge key={name} variant="outline" className="text-xs"><Warehouse className="h-3 w-3 mr-1" />{name}</Badge>)}</div>
                       ) : <span className="text-muted-foreground">—</span>}</TableCell>}
-                      {isColumnVisible("quantity") && <TableCell><Badge variant={product.dispensaNames.length === 0 ? "outline" : product.totalQuantity === 0 ? "destructive" : "secondary"}>{product.dispensaNames.length === 0 ? "—" : `${product.totalQuantity} pz`}</Badge></TableCell>}
+                      {isColumnVisible("quantity") && <TableCell><Badge variant={product.totalQuantity === 0 ? "outline" : "secondary"}>{product.totalQuantity > 0 ? `${product.totalQuantity} pz` : "N/D"}</Badge></TableCell>}
                       {isColumnVisible("date") && <TableCell className="text-muted-foreground">{new Date(product.created_at).toLocaleDateString('it-IT')}</TableCell>}
                       {isColumnVisible("actions") && <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
