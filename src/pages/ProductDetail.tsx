@@ -22,6 +22,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   ArrowLeft,
@@ -54,6 +59,136 @@ import { supabase } from "@/integrations/backend/client";
 import { toast } from "sonner";
 import { useNotificationContext } from "@/contexts/NotificationContext";
 import { getCachedLogo, setCachedLogo } from "@/utils/logoCache";
+
+// Country code mapping for flag fetching
+const COUNTRY_MAPPING: Record<string, { code: string; name: string }> = {
+  "italy": { code: "IT", name: "Italia" },
+  "italia": { code: "IT", name: "Italia" },
+  "france": { code: "FR", name: "Francia" },
+  "francia": { code: "FR", name: "Francia" },
+  "germany": { code: "DE", name: "Germania" },
+  "germania": { code: "DE", name: "Germania" },
+  "spain": { code: "ES", name: "Spagna" },
+  "spagna": { code: "ES", name: "Spagna" },
+  "united states": { code: "US", name: "Stati Uniti" },
+  "usa": { code: "US", name: "Stati Uniti" },
+  "united kingdom": { code: "GB", name: "Regno Unito" },
+  "uk": { code: "GB", name: "Regno Unito" },
+  "china": { code: "CN", name: "Cina" },
+  "cina": { code: "CN", name: "Cina" },
+  "japan": { code: "JP", name: "Giappone" },
+  "giappone": { code: "JP", name: "Giappone" },
+  "portugal": { code: "PT", name: "Portogallo" },
+  "portogallo": { code: "PT", name: "Portogallo" },
+  "greece": { code: "GR", name: "Grecia" },
+  "grecia": { code: "GR", name: "Grecia" },
+  "netherlands": { code: "NL", name: "Paesi Bassi" },
+  "belgium": { code: "BE", name: "Belgio" },
+  "belgio": { code: "BE", name: "Belgio" },
+  "switzerland": { code: "CH", name: "Svizzera" },
+  "svizzera": { code: "CH", name: "Svizzera" },
+  "austria": { code: "AT", name: "Austria" },
+  "poland": { code: "PL", name: "Polonia" },
+  "polonia": { code: "PL", name: "Polonia" },
+  "brazil": { code: "BR", name: "Brasile" },
+  "brasile": { code: "BR", name: "Brasile" },
+  "argentina": { code: "AR", name: "Argentina" },
+  "mexico": { code: "MX", name: "Messico" },
+  "messico": { code: "MX", name: "Messico" },
+  "india": { code: "IN", name: "India" },
+  "turkey": { code: "TR", name: "Turchia" },
+  "turchia": { code: "TR", name: "Turchia" },
+  "thailand": { code: "TH", name: "Tailandia" },
+  "tailandia": { code: "TH", name: "Tailandia" },
+  "vietnam": { code: "VN", name: "Vietnam" },
+  "indonesia": { code: "ID", name: "Indonesia" },
+  "australia": { code: "AU", name: "Australia" },
+  "new zealand": { code: "NZ", name: "Nuova Zelanda" },
+  "canada": { code: "CA", name: "Canada" },
+  "russia": { code: "RU", name: "Russia" },
+};
+
+// Parse origin string and extract countries
+const parseOriginCountries = (origin: string): { code: string; name: string }[] => {
+  const countries: { code: string; name: string }[] = [];
+  const cleanOrigin = origin.toLowerCase()
+    .replace(/made in/gi, "")
+    .replace(/prodotto in/gi, "")
+    .replace(/origin:/gi, "")
+    .replace(/from/gi, "")
+    .trim();
+  
+  // Split by common separators
+  const parts = cleanOrigin.split(/[,;\/\-]/).map(p => p.trim()).filter(Boolean);
+  
+  for (const part of parts) {
+    for (const [key, value] of Object.entries(COUNTRY_MAPPING)) {
+      if (part.includes(key)) {
+        if (!countries.find(c => c.code === value.code)) {
+          countries.push(value);
+        }
+        break;
+      }
+    }
+  }
+  
+  // If no specific countries found, try the whole string
+  if (countries.length === 0) {
+    for (const [key, value] of Object.entries(COUNTRY_MAPPING)) {
+      if (cleanOrigin.includes(key)) {
+        countries.push(value);
+        break;
+      }
+    }
+  }
+  
+  return countries;
+};
+
+// Origin Flags Component with Tooltips
+const OriginFlags = ({ origin }: { origin: string }) => {
+  const countries = parseOriginCountries(origin);
+  
+  if (countries.length === 0) {
+    return (
+      <div className="flex items-center gap-2">
+        <Globe className="h-4 w-4 text-muted-foreground" />
+        <div>
+          <p className="text-xs text-muted-foreground">Origine</p>
+          <p className="font-medium text-sm">{origin}</p>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="flex items-center gap-2">
+      <MapPin className="h-4 w-4 text-muted-foreground" />
+      <div>
+        <p className="text-xs text-muted-foreground">Origine</p>
+        <div className="flex items-center gap-2 mt-1">
+          {countries.map((country) => (
+            <Tooltip key={country.code}>
+              <TooltipTrigger asChild>
+                <img
+                  src={`https://flagcdn.com/w40/${country.code.toLowerCase()}.png`}
+                  alt={country.name}
+                  className="h-5 w-auto rounded-sm shadow-sm cursor-pointer hover:scale-110 transition-transform border"
+                />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{country.name}</p>
+              </TooltipContent>
+            </Tooltip>
+          ))}
+          {countries.length === 0 && (
+            <span className="font-medium text-sm">{origin}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // --- TYPES ---
 interface Product {
@@ -779,15 +914,18 @@ const ProductDetail = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-xs text-muted-foreground">
-                            Origine
-                          </p>
-                          <p className="font-medium">{product.origin || "—"}</p>
+                      {product.origin && (
+                        <OriginFlags origin={product.origin} />
+                      )}
+                      {!product.origin && (
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <p className="text-xs text-muted-foreground">Origine</p>
+                            <p className="font-medium">—</p>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </>
                 )}
