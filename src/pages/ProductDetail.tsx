@@ -60,90 +60,66 @@ import { toast } from "sonner";
 import { useNotificationContext } from "@/contexts/NotificationContext";
 import { getCachedLogo, setCachedLogo } from "@/utils/logoCache";
 
-// Country code mapping for flag fetching
-const COUNTRY_MAPPING: Record<string, { code: string; name: string }> = {
-  "italy": { code: "IT", name: "Italia" },
-  "italia": { code: "IT", name: "Italia" },
-  "france": { code: "FR", name: "Francia" },
-  "francia": { code: "FR", name: "Francia" },
-  "germany": { code: "DE", name: "Germania" },
-  "germania": { code: "DE", name: "Germania" },
-  "spain": { code: "ES", name: "Spagna" },
-  "spagna": { code: "ES", name: "Spagna" },
-  "united states": { code: "US", name: "Stati Uniti" },
-  "usa": { code: "US", name: "Stati Uniti" },
-  "united kingdom": { code: "GB", name: "Regno Unito" },
-  "uk": { code: "GB", name: "Regno Unito" },
-  "china": { code: "CN", name: "Cina" },
-  "cina": { code: "CN", name: "Cina" },
-  "japan": { code: "JP", name: "Giappone" },
-  "giappone": { code: "JP", name: "Giappone" },
-  "portugal": { code: "PT", name: "Portogallo" },
-  "portogallo": { code: "PT", name: "Portogallo" },
-  "greece": { code: "GR", name: "Grecia" },
-  "grecia": { code: "GR", name: "Grecia" },
-  "netherlands": { code: "NL", name: "Paesi Bassi" },
-  "belgium": { code: "BE", name: "Belgio" },
-  "belgio": { code: "BE", name: "Belgio" },
-  "switzerland": { code: "CH", name: "Svizzera" },
-  "svizzera": { code: "CH", name: "Svizzera" },
-  "austria": { code: "AT", name: "Austria" },
-  "poland": { code: "PL", name: "Polonia" },
-  "polonia": { code: "PL", name: "Polonia" },
-  "brazil": { code: "BR", name: "Brasile" },
-  "brasile": { code: "BR", name: "Brasile" },
-  "argentina": { code: "AR", name: "Argentina" },
-  "mexico": { code: "MX", name: "Messico" },
-  "messico": { code: "MX", name: "Messico" },
-  "india": { code: "IN", name: "India" },
-  "turkey": { code: "TR", name: "Turchia" },
-  "turchia": { code: "TR", name: "Turchia" },
-  "thailand": { code: "TH", name: "Tailandia" },
-  "tailandia": { code: "TH", name: "Tailandia" },
-  "vietnam": { code: "VN", name: "Vietnam" },
-  "indonesia": { code: "ID", name: "Indonesia" },
-  "australia": { code: "AU", name: "Australia" },
-  "new zealand": { code: "NZ", name: "Nuova Zelanda" },
-  "canada": { code: "CA", name: "Canada" },
-  "russia": { code: "RU", name: "Russia" },
-};
+import countries from "i18n-iso-countries";
+import itLocale from "i18n-iso-countries/langs/it.json";
+import enLocale from "i18n-iso-countries/langs/en.json";
+import Fuse from "fuse.js";
 
-// Parse origin string and extract countries
+// Registrazione lingue
+countries.registerLocale(itLocale);
+countries.registerLocale(enLocale);
+
+// 1. Setup dei dati per la ricerca fuzzy
+const itNames = countries.getNames("it", { select: "official" });
+const enNames = countries.getNames("en", { select: "official" });
+
+const searchData = Object.entries(itNames).map(([code, name]) => ({
+  code,
+  nameIt: name.toLowerCase(),
+  nameEn: (enNames[code] || "").toLowerCase()
+}));
+
+// 2. Configurazione Fuse.js
+const fuse = new Fuse(searchData, {
+  keys: ["nameIt", "nameEn"],
+  threshold: 0.4, // Permette una buona tolleranza per nomi incompleti
+  distance: 100
+});
+
 const parseOriginCountries = (origin: string): { code: string; name: string }[] => {
-  const countries: { code: string; name: string }[] = [];
-  const cleanOrigin = origin.toLowerCase()
-    .replace(/made in/gi, "")
-    .replace(/prodotto in/gi, "")
-    .replace(/origin:/gi, "")
-    .replace(/from/gi, "")
+  if (!origin) return [];
+
+  const foundCountries: { code: string; name: string }[] = [];
+  
+  // Pulizia della stringa: rimuoviamo prefissi comuni
+  const cleanOrigin = origin
+    .replace(/(made in|prodotto in|origin:|from|origine:)/gi, "")
     .trim();
   
-  // Split by common separators
+  // Dividiamo per i separatori comuni
   const parts = cleanOrigin.split(/[,;\/\-]/).map(p => p.trim()).filter(Boolean);
   
   for (const part of parts) {
-    for (const [key, value] of Object.entries(COUNTRY_MAPPING)) {
-      if (part.includes(key)) {
-        if (!countries.find(c => c.code === value.code)) {
-          countries.push(value);
-        }
-        break;
+    // Cerchiamo il paese usando la ricerca fuzzy
+    const results = fuse.search(part);
+    
+    if (results.length > 0) {
+      const bestMatch = results[0].item;
+      
+      // Evitiamo duplicati
+      if (!foundCountries.some(c => c.code === bestMatch.code)) {
+        foundCountries.push({
+          code: bestMatch.code,
+          // Restituiamo il nome ufficiale in italiano
+          name: countries.getName(bestMatch.code, "it") || part 
+        });
       }
     }
   }
   
-  // If no specific countries found, try the whole string
-  if (countries.length === 0) {
-    for (const [key, value] of Object.entries(COUNTRY_MAPPING)) {
-      if (cleanOrigin.includes(key)) {
-        countries.push(value);
-        break;
-      }
-    }
-  }
-  
-  return countries;
+  return foundCountries;
 };
+
 
 // Origin Flags Component with Tooltips
 const OriginFlags = ({ origin }: { origin: string }) => {
@@ -173,7 +149,7 @@ const OriginFlags = ({ origin }: { origin: string }) => {
                 <img
                   src={`https://flagcdn.com/w40/${country.code.toLowerCase()}.png`}
                   alt={country.name}
-                  className="h-5 w-auto rounded-sm shadow-sm cursor-pointer hover:scale-110 transition-transform border"
+                  className="h-5 w-auto rounded-[5px] shadow-sm cursor-pointer hover:scale-110 transition-transform border aspect-[3/2]"
                 />
               </TooltipTrigger>
               <TooltipContent>
@@ -582,7 +558,7 @@ const ProductDetail = () => {
     score: string | number | null,
     type: "nutri" | "eco" | "nova"
   ) => {
-    if (!score) return "bg-muted";
+    if (!score) return "bg-gray-200";
     const s = String(score).toLowerCase();
 
     if (type === "nova") {
@@ -592,7 +568,7 @@ const ProductDetail = () => {
         "3": "bg-orange-400",
         "4": "bg-red-500",
       };
-      return map[s] || "bg-muted";
+      return map[s] || "bg-gray-200";
     }
 
     const map: Record<string, string> = {
@@ -602,7 +578,7 @@ const ProductDetail = () => {
       d: "bg-orange-500",
       e: "bg-red-600",
     };
-    return map[s] || "bg-muted";
+    return map[s] || "bg-gray-200";
   };
 
   const normalizeBrandToDomain = (brand: string) =>
@@ -983,7 +959,7 @@ const ProductDetail = () => {
                       className={`${getScoreColor(
                         product.nutriscore,
                         "nutri"
-                      )} text-white border-0 px-3 py-1`}
+                      )} text-white border-0 px-3 py-1 pointer-events-none`}
                     >
                       {product.nutriscore.toUpperCase()}
                     </Badge>
@@ -996,7 +972,7 @@ const ProductDetail = () => {
                       className={`${getScoreColor(
                         product.ecoscore,
                         "eco"
-                      )} text-white border-0 px-3 py-1`}
+                      )} text-white border-0 px-3 py-1 pointer-events-none`}
                     >
                       {product.ecoscore.toUpperCase()}
                     </Badge>
@@ -1009,7 +985,7 @@ const ProductDetail = () => {
                       className={`${getScoreColor(
                         product.nova_group,
                         "nova"
-                      )} text-white border-0 px-3 py-1`}
+                      )} text-white border-0 px-3 py-1 pointer-events-none`}
                     >
                       {product.nova_group}
                     </Badge>
