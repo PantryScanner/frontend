@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -24,6 +25,8 @@ import {
   Edit,
   Trash2,
   QrCode,
+  Save,
+  X,
 } from "lucide-react";
 import {
   Dialog,
@@ -34,6 +37,7 @@ import {
 import { supabase } from "@/integrations/backend/client";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
+import { useNotificationContext } from "@/contexts/NotificationContext";
 
 interface Dispensa {
   id: string;
@@ -70,9 +74,16 @@ const isScannerOnline = (lastSeenAt: string | null): boolean => {
   return diffMins < 5;
 };
 
+const PRESET_COLORS = [
+  "#6366f1", "#8b5cf6", "#d946ef", "#ec4899", "#f43f5e",
+  "#f97316", "#eab308", "#84cc16", "#22c55e", "#14b8a6",
+  "#06b6d4", "#0ea5e9", "#3b82f6",
+];
+
 const DispensaDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { addLocalNotification } = useNotificationContext();
   const [dispensa, setDispensa] = useState<Dispensa | null>(null);
   const [scanners, setScanners] = useState<Scanner[]>([]);
   const [products, setProducts] = useState<ProductInDispensa[]>([]);
@@ -80,6 +91,13 @@ const DispensaDetail = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedScanner, setSelectedScanner] = useState<Scanner | null>(null);
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
+  
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editColor, setEditColor] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     fetchDispensaData();
@@ -103,6 +121,9 @@ const DispensaDetail = () => {
       }
 
       setDispensa(dispensaData);
+      setEditName(dispensaData.name);
+      setEditLocation(dispensaData.location || "");
+      setEditColor(dispensaData.color || "#6366f1");
 
       const { data: scannersData, error: scannersError } = await supabase
         .from("scanners")
@@ -145,6 +166,51 @@ const DispensaDetail = () => {
     }
   };
 
+  const handleSave = async () => {
+    if (!dispensa || !editName.trim()) {
+      toast.error("Il nome è obbligatorio");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from("dispense")
+        .update({
+          name: editName.trim(),
+          location: editLocation.trim() || null,
+          color: editColor,
+        })
+        .eq("id", dispensa.id);
+
+      if (error) throw error;
+
+      setDispensa({
+        ...dispensa,
+        name: editName.trim(),
+        location: editLocation.trim() || null,
+        color: editColor,
+      });
+      setIsEditing(false);
+      toast.success("Dispensa aggiornata");
+      addLocalNotification("Dispensa aggiornata", `${editName.trim()} modificata con successo`, "success");
+    } catch (error) {
+      console.error("Error updating dispensa:", error);
+      toast.error("Errore nell'aggiornamento");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    if (dispensa) {
+      setEditName(dispensa.name);
+      setEditLocation(dispensa.location || "");
+      setEditColor(dispensa.color || "#6366f1");
+    }
+    setIsEditing(false);
+  };
+
   const handleDeleteDispensa = async () => {
     if (!dispensa || !confirm("Sei sicuro di voler eliminare questa dispensa?")) return;
 
@@ -152,6 +218,7 @@ const DispensaDetail = () => {
       const { error } = await supabase.from("dispense").delete().eq("id", dispensa.id);
       if (error) throw error;
       toast.success("Dispensa eliminata");
+      addLocalNotification("Dispensa eliminata", `${dispensa.name} rimossa`, "info");
       navigate("/dispense");
     } catch (error) {
       console.error("Error deleting dispensa:", error);
@@ -197,33 +264,87 @@ const DispensaDetail = () => {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <div 
-              className="h-12 w-12 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: `${dispensa.color || '#6366f1'}20` }}
-            >
-              <Warehouse 
-                className="h-6 w-6" 
-                style={{ color: dispensa.color || '#6366f1' }}
-              />
+          {isEditing ? (
+            <div className="space-y-4 max-w-md">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Nome *</Label>
+                <Input
+                  id="edit-name"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Nome dispensa"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-location">Posizione</Label>
+                <Input
+                  id="edit-location"
+                  value={editLocation}
+                  onChange={(e) => setEditLocation(e.target.value)}
+                  placeholder="es. Cucina, Garage"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Colore</Label>
+                <div className="flex flex-wrap gap-2">
+                  {PRESET_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${
+                        editColor === color ? "border-foreground ring-2 ring-foreground/20" : "border-transparent"
+                      }`}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setEditColor(color)}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold">{dispensa.name}</h1>
-              <p className="text-muted-foreground">
-                {dispensa.location || "Nessuna posizione"}
-              </p>
+          ) : (
+            <div className="flex items-center gap-3">
+              <div 
+                className="h-12 w-12 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: `${dispensa.color || '#6366f1'}20` }}
+              >
+                <Warehouse 
+                  className="h-6 w-6" 
+                  style={{ color: dispensa.color || '#6366f1' }}
+                />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold">{dispensa.name}</h1>
+                <p className="text-muted-foreground">
+                  {dispensa.location || "Nessuna posizione"}
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate(`/dispense/${id}/edit`)}>
-            <Edit className="h-4 w-4 mr-2" />
-            Modifica
-          </Button>
-          <Button variant="destructive" onClick={handleDeleteDispensa}>
-            <Trash2 className="h-4 w-4 mr-2" />
-            Elimina
-          </Button>
+          {isEditing ? (
+            <>
+              <Button variant="outline" onClick={handleCancelEdit} disabled={isSaving}>
+                <X className="h-4 w-4 mr-2" />
+                Annulla
+              </Button>
+              <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                Salva
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => setIsEditing(true)}>
+                <Edit className="h-4 w-4 mr-2" />
+                Modifica
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteDispensa}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Elimina
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
