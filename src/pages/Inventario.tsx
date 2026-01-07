@@ -36,6 +36,7 @@ interface Product {
   category: string | null;
   created_at: string;
   image_url?: string | null;
+  brand?: string | null;
 }
 
 interface ProductWithDetails extends Product {
@@ -56,10 +57,12 @@ interface Dispensa {
   name: string;
 }
 
-type ColumnKey = "name" | "barcode" | "category" | "dispensa" | "quantity" | "date" | "actions";
+type ColumnKey = "image" | "name" | "brand" | "barcode" | "category" | "dispensa" | "quantity" | "date" | "actions";
 
 const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
+  { key: "image", label: "Immagine" },
   { key: "name", label: "Prodotto" },
+  { key: "brand", label: "Marca" },
   { key: "barcode", label: "Codice a barre" },
   { key: "category", label: "Categoria" },
   { key: "dispensa", label: "Dispensa" },
@@ -78,10 +81,12 @@ const Inventario = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [brandFilter, setBrandFilter] = useState("all");
   const [categories, setCategories] = useState<string[]>([]);
+  const [brands, setBrands] = useState<string[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [visibleColumns, setVisibleColumns] = useState<ColumnKey[]>(["name", "barcode", "category", "dispensa", "quantity", "actions"]);
+  const [visibleColumns, setVisibleColumns] = useState<ColumnKey[]>(["image", "name", "brand", "category", "dispensa", "quantity", "actions"]);
   const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
   const [newProduct, setNewProduct] = useState({
     name: "", barcode: "", category: "", quantity: 1, dispensa_id: "",
@@ -137,11 +142,16 @@ const Inventario = () => {
       setProducts(productsWithDetails);
       setDispense(dispenseRes.data || []);
 
-      // Collect all unique categories from product_categories table
+      // Collect all unique categories and brands
       const allCats = new Set<string>();
+      const allBrands = new Set<string>();
       (allCategoriesData || []).forEach((cat: { category_name: string }) => allCats.add(cat.category_name));
-      (productsRes.data || []).forEach((p) => { if (p.category) allCats.add(p.category); });
+      (productsRes.data || []).forEach((p) => { 
+        if (p.category) allCats.add(p.category);
+        if (p.brand) allBrands.add(p.brand);
+      });
       setCategories(Array.from(allCats).sort());
+      setBrands(Array.from(allBrands).sort());
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Errore nel caricamento dei prodotti");
@@ -236,9 +246,11 @@ const Inventario = () => {
     const matchesSearch = 
       product.name?.toLowerCase().includes(searchLower) ||
       product.barcode?.toLowerCase().includes(searchLower) ||
+      product.brand?.toLowerCase().includes(searchLower) ||
       product.allCategories.some((cat) => cat.toLowerCase().includes(searchLower));
     const matchesCategory = categoryFilter === "all" || product.allCategories.includes(categoryFilter);
-    return matchesSearch && matchesCategory;
+    const matchesBrand = brandFilter === "all" || product.brand === brandFilter;
+    return matchesSearch && matchesCategory && matchesBrand;
   });
 
   const isColumnVisible = (key: ColumnKey) => visibleColumns.includes(key);
@@ -324,6 +336,13 @@ const Inventario = () => {
                   {categories.map((cat) => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <Select value={brandFilter} onValueChange={setBrandFilter}>
+                <SelectTrigger className="w-[150px]"><SelectValue placeholder="Marca" /></SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="all">Tutte</SelectItem>
+                  {brands.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                </SelectContent>
+              </Select>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild><Button variant="outline" size="icon"><Columns className="h-4 w-4" /></Button></DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="bg-popover">
@@ -349,7 +368,9 @@ const Inventario = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    {isColumnVisible("image") && <TableHead className="w-16">Img</TableHead>}
                     {isColumnVisible("name") && <TableHead>Prodotto</TableHead>}
+                    {isColumnVisible("brand") && <TableHead>Marca</TableHead>}
                     {isColumnVisible("barcode") && <TableHead>Codice a barre</TableHead>}
                     {isColumnVisible("category") && <TableHead>Categoria</TableHead>}
                     {isColumnVisible("dispensa") && <TableHead>Dispensa</TableHead>}
@@ -361,7 +382,9 @@ const Inventario = () => {
                 <TableBody>
                   {filteredProducts.map((product) => (
                     <TableRow key={product.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => navigate(`/prodotti/${product.id}`)}>
+                      {isColumnVisible("image") && <TableCell>{product.image_url ? <img src={product.image_url} alt="" className="h-10 w-10 rounded object-contain bg-white border" /> : <div className="h-10 w-10 rounded bg-muted flex items-center justify-center"><Package className="h-4 w-4 text-muted-foreground" /></div>}</TableCell>}
                       {isColumnVisible("name") && <TableCell className="font-medium">{product.name || <span className="text-muted-foreground italic">Senza nome</span>}</TableCell>}
+                      {isColumnVisible("brand") && <TableCell className="text-muted-foreground">{product.brand || "—"}</TableCell>}
                       {isColumnVisible("barcode") && <TableCell><code className="text-xs bg-muted px-2 py-1 rounded">{product.barcode || "—"}</code></TableCell>}
                       {isColumnVisible("category") && <TableCell>{product.allCategories.length > 0 ? (
                         <div className="flex flex-wrap gap-1 max-w-xs">{product.allCategories.slice(0, 3).map((cat) => <Badge key={cat} variant="secondary" className="text-xs">{cat}</Badge>)}{product.allCategories.length > 3 && <Badge variant="outline" className="text-xs">+{product.allCategories.length - 3}</Badge>}</div>
