@@ -137,7 +137,7 @@ Deno.serve(async (req) => {
 
       // Inserimento categorie (opzionale, asincrono)
       if (offData?.categories?.length) {
-        const cats = offData.categories.slice(0, 5).map(cat => ({ product_id: productId, category_name: cat }));
+        const cats = offData.categories.slice(0, 5).map((cat: string) => ({ product_id: productId, category_name: cat }));
         supabase.from('product_categories').insert(cats).then();
       }
     }
@@ -166,9 +166,10 @@ Deno.serve(async (req) => {
     }
 
     // 4. Notifiche e Log
-    const locationName = Array.isArray(scanner.dispense) 
-      ? scanner.dispense[0]?.name 
-      : scanner.dispense?.name || "pantry";
+    const dispenseData = scanner.dispense as { name: string } | { name: string }[] | null;
+    const locationName = Array.isArray(dispenseData) 
+      ? dispenseData[0]?.name 
+      : dispenseData?.name || "pantry";
     
     // Eseguiamo log e notifiche in parallelo per velocizzare
     await Promise.all([
