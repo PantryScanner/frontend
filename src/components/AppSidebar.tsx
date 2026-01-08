@@ -32,7 +32,7 @@ export function AppSidebar() {
         <SidebarGroup>
 
           {/* Logo linking to home */}
-          <Link to="/" className="flex items-center gap-2 group hover:opacity-80 transition-opacity mb-6 mt-2">
+          <Link to="/" className={`flex items-center gap-2 group hover:opacity-80 transition-opacity transition-margin transition-width ${isCollapsed ? '' : 'mx-3'} mb-6 mt-2`}>
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
               <Warehouse className="h-4 w-4 text-primary-foreground" />
             </div>
