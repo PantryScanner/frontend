@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Package, Warehouse, Cpu, BarChart3, HelpCircle, LogOut } from "lucide-react";
+import { LayoutDashboard, Package, Warehouse, Cpu, BarChart3, HelpCircle, LogOut, User, Users } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter, useSidebar } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ const menuItems = [
   { title: "Dispositivi", url: "/dispositivi", icon: Cpu },
   { title: "Inventario", url: "/inventario", icon: Package },
   { title: "Grafici", url: "/grafici", icon: BarChart3 },
+  { title: "Gruppi", url: "/gruppi", icon: Users },
 ];
 
 export function AppSidebar() {
@@ -76,6 +77,9 @@ export function AppSidebar() {
         {user && (
           <div className="space-y-3">
             {!isCollapsed && <div className="px-2"><p className="text-sm font-medium truncate">{user.email}</p></div>}
+            <Button variant="ghost" className={`w-full justify-start gap-3 ${isCollapsed ? 'px-2' : ''}`} onClick={() => navigate('/profilo')}>
+              <User className="h-5 w-5" />{!isCollapsed && "Profilo"}
+            </Button>
             <Button variant="ghost-destructive" className={`w-full justify-start gap-3 ${isCollapsed ? 'px-2' : ''}`} onClick={handleLogout}>
               <LogOut className="h-5 w-5" />{!isCollapsed && "Esci"}
             </Button>

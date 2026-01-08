@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           color: string | null
           created_at: string
+          group_id: string | null
           id: string
           location: string | null
           name: string
@@ -28,6 +29,7 @@ export type Database = {
         Insert: {
           color?: string | null
           created_at?: string
+          group_id?: string | null
           id?: string
           location?: string | null
           name: string
@@ -38,6 +40,7 @@ export type Database = {
         Update: {
           color?: string | null
           created_at?: string
+          group_id?: string | null
           id?: string
           location?: string | null
           name?: string
@@ -45,12 +48,21 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "dispense_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       dispense_products: {
         Row: {
           created_at: string
           dispensa_id: string
+          expiry_date: string | null
           id: string
           last_scanned_at: string | null
           product_id: string
@@ -61,6 +73,7 @@ export type Database = {
         Insert: {
           created_at?: string
           dispensa_id: string
+          expiry_date?: string | null
           id?: string
           last_scanned_at?: string | null
           product_id: string
@@ -71,6 +84,7 @@ export type Database = {
         Update: {
           created_at?: string
           dispensa_id?: string
+          expiry_date?: string | null
           id?: string
           last_scanned_at?: string | null
           product_id?: string
@@ -94,6 +108,112 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      group_invites: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          invited_by: string
+          invited_email: string
+          role: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          invited_by: string
+          invited_email: string
+          role?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          invited_by?: string
+          invited_email?: string
+          role?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_invites_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_members: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          group_id: string
+          id: string
+          invited_at: string
+          invited_by: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          group_id: string
+          id?: string
+          invited_at?: string
+          invited_by: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          group_id?: string
+          id?: string
+          invited_at?: string
+          invited_by?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      groups: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -222,24 +342,30 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string
           id: string
+          preferences: Json | null
           tutorial_completed: boolean | null
           updated_at: string
           user_id: string
           username: string | null
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           id?: string
+          preferences?: Json | null
           tutorial_completed?: boolean | null
           updated_at?: string
           user_id: string
           username?: string | null
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           id?: string
+          preferences?: Json | null
           tutorial_completed?: boolean | null
           updated_at?: string
           user_id?: string
