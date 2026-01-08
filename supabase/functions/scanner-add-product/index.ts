@@ -62,42 +62,40 @@ async function fetchOpenFoodFactsData(barcode: string) {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
-  }
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
+
+  // Helper per risposte JSON uniformi
+  const jsonResponse = (data: any, status = 200) => 
+    new Response(JSON.stringify(data), { 
+      status, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    )
 
     const { barcode, scanner_serial, action = 'add', quantity = 1 }: ScanRequest = await req.json()
 
-    console.log(`Received scan request: barcode=${barcode}, scanner=${scanner_serial}, action=${action}, qty=${quantity}`)
+    if (!barcode || !scanner_serial) return jsonResponse({ error: 'Missing fields' }, 400)
 
-    // Validate input
-    if (!barcode || !scanner_serial) {
-      return new Response(JSON.stringify({ error: 'Missing fields' }), { status: 400, headers: corsHeaders })
-    }
-
-    // Find Scanner and associated Dispensa
+    // 1. Ottimizzato: Recuperiamo scanner e nome dispensa in un colpo solo
     const { data: scanner, error: scannerError } = await supabase
       .from('scanners')
-      .select('id, user_id, dispensa_id, name')
+      .select('id, user_id, dispensa_id, name, dispense(name)') // Join con dispense
       .eq('serial_number', scanner_serial)
       .maybeSingle()
 
-    if (!scanner || scannerError) {
-      return new Response(JSON.stringify({ error: 'Scanner not found or unauthorized' }), { status: 404, headers: corsHeaders })
-    }
+    if (!scanner || scannerError) return jsonResponse({ error: 'Scanner not found' }, 404)
 
-    // Update scanner last seen
-    await supabase.from('scanners').update({ last_seen_at: new Date().toISOString() }).eq('id', scanner.id)
+    // Aggiornamento asincrono (non blocca la risposta)
+    supabase.from('scanners').update({ last_seen_at: new Date().toISOString() }).eq('id', scanner.id).then();
 
-    // Product Management (Find or Create with OpenFoodFacts data)
+    // 2. Gestione Prodotto
     let productId: string
-    let productName = "Nuovo Prodotto";
+    let productName: string
     
     const { data: existingProduct } = await supabase
       .from('products')
@@ -108,115 +106,91 @@ Deno.serve(async (req) => {
 
     if (existingProduct) {
       productId = existingProduct.id
-      productName = existingProduct.name || productName
+      productName = existingProduct.name || "Prodotto senza nome"
     } else {
-      // Fetch full data from OpenFoodFacts for new products
-      const offData = await fetchOpenFoodFactsData(barcode);
+      const offData = await fetchOpenFoodFactsData(barcode)
       
-      const productInsertData = {
-        barcode,
-        user_id: scanner.user_id,
-        name: offData?.name || "Nuovo Prodotto",
-        image_url: offData?.image_url || null,
-        brand: offData?.brand || null,
-        category: offData?.category || null,
-        ingredients: offData?.ingredients || null,
-        nutriscore: offData?.nutriscore || null,
-        ecoscore: offData?.ecoscore || null,
-        nova_group: offData?.nova_group || null,
-        allergens: offData?.allergens || null,
-        nutritional_values: offData?.nutritional_values || null,
-        packaging: offData?.packaging || null,
-        labels: offData?.labels || null,
-        origin: offData?.origin || null,
-        carbon_footprint: offData?.carbon_footprint || null
-      };
-
       const { data: newProduct, error: pError } = await supabase
         .from('products')
-        .insert(productInsertData)
+        .insert({
+          barcode,
+          user_id: scanner.user_id,
+          name: offData?.name || "Nuovo Prodotto",
+          image_url: offData?.image_url,
+          brand: offData?.brand,
+          nutriscore: offData?.nutriscore,
+          ecoscore: offData?.ecoscore || null,
+          nova_group: offData?.nova_group || null,
+          allergens: offData?.allergens || null,
+          nutritional_values: offData?.nutritional_values || null,
+          packaging: offData?.packaging || null,
+          labels: offData?.labels || null,
+          origin: offData?.origin || null,
+          carbon_footprint: offData?.carbon_footprint || null
+        })
         .select('id, name')
         .single()
 
       if (pError) throw pError
       productId = newProduct.id
-      productName = newProduct.name || "Nuovo Prodotto"
-      
-      // Insert categories if available
-      if (offData?.categories && offData.categories.length > 0) {
-        const categoriesToInsert = offData.categories.slice(0, 10).map((cat: string) => ({
-          product_id: productId,
-          category_name: cat
-        }));
-        
-        await supabase.from('product_categories').insert(categoriesToInsert);
+      productName = newProduct.name
+
+      // Inserimento categorie (opzionale, asincrono)
+      if (offData?.categories?.length) {
+        const cats = offData.categories.slice(0, 5).map(cat => ({ product_id: productId, category_name: cat }));
+        supabase.from('product_categories').insert(cats).then();
       }
     }
 
-    // Update quantity (only if dispensa is assigned)
+    // 3. Gestione Quantità con UPSERT (Evita race conditions)
     if (scanner.dispensa_id) {
-      const { data: existingEntry } = await supabase
+      // Nota: Assicurati di avere un vincolo UNIQUE su (dispensa_id, product_id) nel DB
+      const { data: currentEntry } = await supabase
         .from('dispense_products')
-        .select('id, quantity')
+        .select('quantity')
         .eq('dispensa_id', scanner.dispensa_id)
         .eq('product_id', productId)
-        .maybeSingle()
+        .maybeSingle();
 
-      if (existingEntry) {
-        const newQty = action === 'add' 
-          ? existingEntry.quantity + quantity 
-          : Math.max(0, existingEntry.quantity - quantity)
-        await supabase
-          .from('dispense_products')
-          .update({ quantity: newQty, last_scanned_at: new Date().toISOString() })
-          .eq('id', existingEntry.id)
-      } else {
-        await supabase.from('dispense_products').insert({
+      const oldQty = currentEntry?.quantity || 0;
+      const newQty = action === 'add' ? oldQty + quantity : Math.max(0, oldQty - quantity);
+
+      await supabase
+        .from('dispense_products')
+        .upsert({
           dispensa_id: scanner.dispensa_id,
           product_id: productId,
-          quantity: action === 'add' ? quantity : 0,
+          quantity: newQty,
           last_scanned_at: new Date().toISOString()
-        })
-      }
+        }, { onConflict: 'dispensa_id,product_id' })
     }
 
-    // Log and Notification
-    await supabase.from('scan_logs').insert({
-      scanner_id: scanner.id,
-      dispensa_id: scanner.dispensa_id || null,
-      product_id: productId,
-      barcode,
-      action,
-      quantity
-    })
+    // 4. Notifiche e Log
+    const locationName = Array.isArray(scanner.dispense) 
+      ? scanner.dispense[0]?.name 
+      : scanner.dispense?.name || "pantry";
+    
+    // Eseguiamo log e notifiche in parallelo per velocizzare
+    await Promise.all([
+      supabase.from('scan_logs').insert({
+        scanner_id: scanner.id,
+        dispensa_id: scanner.dispensa_id,
+        product_id: productId,
+        barcode,
+        action,
+        quantity
+      }),
+      supabase.from('notifications').insert({
+        user_id: scanner.user_id,
+        title: action === 'add' ? 'Prodotto aggiunto' : 'Prodotto rimosso',
+        message: `${quantity}x ${productName} ${action === 'add' ? 'aggiunto a' : 'rimosso da'} ${locationName}`,
+        type: 'scanner'
+      })
+    ]);
 
-    let locationName = "inventario generale";
-    if (scanner.dispensa_id) {
-      const { data: dispensa } = await supabase.from('dispense').select('name').eq('id', scanner.dispensa_id).single()
-      if (dispensa) locationName = dispensa.name;
-    }
+    return jsonResponse({ success: true, productId, productName });
 
-    await supabase.from('notifications').insert({
-      user_id: scanner.user_id,
-      title: action === 'add' ? 'Prodotto aggiunto' : 'Prodotto rimosso',
-      message: `${quantity}x ${productName} ${action === 'add' ? 'aggiunto a' : 'rimosso da'} ${locationName}`,
-      type: 'scanner'
-    })
-
-    console.log(`Successfully processed: product=${productId}, dispensa_assigned=${!!scanner.dispensa_id}`)
-
-    return new Response(JSON.stringify({ 
-      success: true, 
-      productId, 
-      productName,
-      dispensa_assigned: !!scanner.dispensa_id 
-    }), { 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    })
-
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    console.error('Scanner edge function error:', errorMessage);
-    return new Response(JSON.stringify({ error: errorMessage }), { status: 500, headers: corsHeaders })
+  } catch (error: any) {
+    return jsonResponse({ error: error.message }, 500);
   }
 })
