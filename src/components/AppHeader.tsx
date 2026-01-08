@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { Bell, Search, X, Trash2, Check, AlertTriangle, Info, XCircle, Radio, Warehouse } from "lucide-react";
+import { Bell, Search, X, Trash2, Check, AlertTriangle, Info, XCircle, Radio } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -61,14 +60,6 @@ export function AppHeader() {
       </div>
       
       <div className="flex items-center gap-4">
-        {/* Logo linking to home */}
-        <Link to="/" className="flex items-center gap-2 group hover:opacity-80 transition-opacity">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
-            <Warehouse className="h-4 w-4 text-primary-foreground" />
-          </div>
-          <span className="font-bold text-lg hidden sm:block">PantryOS</span>
-        </Link>
-
         <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative" data-notification-bell>

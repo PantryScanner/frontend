@@ -4,6 +4,7 @@ import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGrou
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { useTutorialContext } from "@/contexts/TutorialContext";
+import { Link } from "react-router-dom";
 
 const menuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -29,7 +30,15 @@ export function AppSidebar() {
     <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-lg font-bold mb-4 px-4">{!isCollapsed && "PantryOS"}</SidebarGroupLabel>
+
+          {/* Logo linking to home */}
+          <Link to="/" className="flex items-center gap-2 group hover:opacity-80 transition-opacity mb-6 mt-2">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+              <Warehouse className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <span className={`font-bold text-lg  ${isCollapsed ? 'hidden' : ''}`}>PantryOS</span>
+          </Link>
+
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
