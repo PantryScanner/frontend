@@ -58,7 +58,7 @@ import {
 import { supabase } from "@/integrations/backend/client";
 import { toast } from "sonner";
 import { useNotificationContext } from "@/contexts/NotificationContext";
-import { getCachedLogo, setCachedLogo } from "@/utils/logoCache";
+import { getCachedLogo, setCachedLogo, urlToBase64 } from "@/utils/logoCache";
 
 import countries from "i18n-iso-countries";
 import itLocale from "i18n-iso-countries/langs/it.json";
@@ -617,10 +617,13 @@ const ProductDetail = () => {
         console.log("Fetch logo per:", brandName, res);
 
         if (res.ok) {
-          const logoUrl = res.url;
-
-          setCachedLogo(brandName, logoUrl);
-          setBrandLogoUrl(logoUrl);
+          // TRASFORMAZIONE: Invece di salvare res.url, scarichiamo i dati
+          const base64Logo = await urlToBase64(res.url);
+          
+          if (base64Logo) {
+            setCachedLogo(brandName, base64Logo);
+            setBrandLogoUrl(base64Logo);
+          }
         } else {
           setBrandLogoUrl(null);
         }
