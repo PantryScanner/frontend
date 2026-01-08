@@ -24,6 +24,8 @@ import Grafici from "./pages/Grafici";
 import About from "./pages/About";
 import Scanners from "./pages/Scanners";
 import Pricing from "./pages/Pricing";
+import Profile from "./pages/Profile";
+import Groups from "./pages/Groups";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -64,6 +66,8 @@ const App = () => (
                 <Route path="/dispense/:id" element={<ProtectedRoute><AppLayout><DispensaDetail /></AppLayout></ProtectedRoute>} />
                 <Route path="/dispositivi" element={<ProtectedRoute><AppLayout><Dispositivi /></AppLayout></ProtectedRoute>} />
                 <Route path="/grafici" element={<ProtectedRoute><AppLayout><Grafici /></AppLayout></ProtectedRoute>} />
+                <Route path="/profilo" element={<ProtectedRoute><AppLayout><Profile /></AppLayout></ProtectedRoute>} />
+                <Route path="/gruppi" element={<ProtectedRoute><AppLayout><Groups /></AppLayout></ProtectedRoute>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
