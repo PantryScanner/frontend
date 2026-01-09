@@ -226,3 +226,107 @@ FOR SELECT USING (
     AND group_members.accepted_at IS NOT NULL
   )
 );
+
+-- enable RLS if not enabled
+ALTER TABLE public.group_members ENABLE ROW LEVEL SECURITY;
+
+-- allow a logged-in user to see their own membership rows
+CREATE POLICY "group_members_select_own" ON public.group_members
+  FOR SELECT TO authenticated
+  USING (user_id = (SELECT auth.uid()));
+
+-- allow a logged-in user to insert only rows for themselves
+CREATE POLICY "group_members_insert_own" ON public.group_members
+  FOR INSERT TO authenticated
+  WITH CHECK (user_id = (SELECT auth.uid()));
+
+-- allow update/delete only on their own membership rows
+CREATE POLICY "group_members_update_own" ON public.group_members
+  FOR UPDATE TO authenticated
+  USING (user_id = (SELECT auth.uid()))
+  WITH CHECK (user_id = (SELECT auth.uid()));
+
+CREATE POLICY "group_members_delete_own" ON public.group_members
+  FOR DELETE TO authenticated
+  USING (user_id = (SELECT auth.uid()));
+
+
+  -- 1) DROP existing policies on these tables (safe: only removes policies)
+-- Adjust schema if not 'public'
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='group_members') THEN
+    EXECUTE (SELECT string_agg('DROP POLICY ' || quote_ident(policyname) || ' ON public.group_members;', ' ') FROM pg_policies WHERE schemaname='public' AND tablename='group_members');
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='groups') THEN
+    EXECUTE (SELECT string_agg('DROP POLICY ' || quote_ident(policyname) || ' ON public.groups;', ' ') FROM pg_policies WHERE schemaname='public' AND tablename='groups');
+  END IF;
+END$$;
+
+-- 2) Ensure RLS is enabled
+ALTER TABLE public.group_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.groups ENABLE ROW LEVEL SECURITY;
+
+-- 3) Create a SECURITY DEFINER helper to check membership without recursive RLS invocation.
+-- Only create if not already present. Replace function name if you already have one.
+CREATE OR REPLACE FUNCTION public.is_user_member_of_group(p_user uuid, p_group uuid) RETURNS boolean
+LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.group_members gm
+    WHERE gm.user_id = p_user AND gm.group_id = p_group
+  );
+$$;
+
+-- Restrict who can execute the helper (optional, but recommended)
+REVOKE ALL ON FUNCTION public.is_user_member_of_group(uuid, uuid) FROM public;
+GRANT EXECUTE ON FUNCTION public.is_user_member_of_group(uuid, uuid) TO authenticated;
+
+-- 4) Create safe policies
+
+-- group_members: users can see their own membership rows
+CREATE POLICY group_members_select_own ON public.group_members
+  FOR SELECT TO authenticated
+  USING (user_id = (SELECT auth.uid()));
+
+CREATE POLICY group_members_insert_own ON public.group_members
+  FOR INSERT TO authenticated
+  WITH CHECK (user_id = (SELECT auth.uid()));
+
+CREATE POLICY group_members_update_own ON public.group_members
+  FOR UPDATE TO authenticated
+  USING (user_id = (SELECT auth.uid()))
+  WITH CHECK (user_id = (SELECT auth.uid()));
+
+CREATE POLICY group_members_delete_own ON public.group_members
+  FOR DELETE TO authenticated
+  USING (user_id = (SELECT auth.uid()));
+
+-- If you want members to view other members of the same group, allow SELECT when the requester is in the group:
+CREATE POLICY group_members_select_same_group ON public.group_members
+  FOR SELECT TO authenticated
+  USING (
+    is_user_member_of_group((SELECT auth.uid()), group_id)
+  );
+
+-- groups: allow authenticated users to read groups where they are members, or owners
+CREATE POLICY groups_select_member_or_owner ON public.groups
+  FOR SELECT TO authenticated
+  USING (
+    owner_id = (SELECT auth.uid())
+    OR is_user_member_of_group((SELECT auth.uid()), id)
+  );
+
+-- allow owners to insert groups setting themselves as owner only
+CREATE POLICY groups_insert_owner ON public.groups
+  FOR INSERT TO authenticated
+  WITH CHECK (owner_id = (SELECT auth.uid()));
+
+-- allow owners to update/delete their groups
+CREATE POLICY groups_update_owner ON public.groups
+  FOR UPDATE TO authenticated
+  USING (owner_id = (SELECT auth.uid()))
+  WITH CHECK (owner_id = (SELECT auth.uid()));
+
+CREATE POLICY groups_delete_owner ON public.groups
+  FOR DELETE TO authenticated
+  USING (owner_id = (SELECT auth.uid()));
