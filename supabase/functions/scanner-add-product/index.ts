@@ -12,6 +12,21 @@ interface ScanRequest {
   quantity?: number
 }
 
+// Input validation
+function validateBarcode(barcode: string): boolean {
+  // Allow EAN-8, EAN-13, UPC-A, UPC-E formats (numeric, 8-13 digits)
+  return /^\d{8,13}$/.test(barcode);
+}
+
+function validateQuantity(quantity: number): boolean {
+  return Number.isInteger(quantity) && quantity >= 1 && quantity <= 1000;
+}
+
+function validateSerialNumber(serial: string): boolean {
+  // Format: SCN-XXXXXXXX-XXXX
+  return /^SCN-[A-Z0-9]{8}-[A-Z0-9]{4}$/.test(serial);
+}
+
 // Unified product data fetching from OpenFoodFacts
 async function fetchOpenFoodFactsData(barcode: string) {
   try {
@@ -64,40 +79,96 @@ async function fetchOpenFoodFactsData(barcode: string) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
-  // Helper per risposte JSON uniformi
-  const jsonResponse = (data: any, status = 200) => 
+  // Helper for uniform JSON responses
+  const jsonResponse = (data: Record<string, unknown>, status = 200) => 
     new Response(JSON.stringify(data), { 
       status, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
 
   try {
+    // 1. Verify JWT authentication
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return jsonResponse({ error: 'Unauthorized - Missing or invalid authorization header' }, 401)
+    }
+
+    // Create client with user's auth token (uses anon key, respects RLS)
     const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    )
+
+    // Verify the JWT and get user claims
+    const token = authHeader.replace('Bearer ', '')
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token)
+    
+    if (claimsError || !claimsData?.claims) {
+      return jsonResponse({ error: 'Unauthorized - Invalid token' }, 401)
+    }
+
+    const userId = claimsData.claims.sub as string
+
+    // 2. Parse and validate request body
+    const { barcode, scanner_serial, action = 'add', quantity = 1 }: ScanRequest = await req.json()
+
+    // Input validation
+    if (!barcode || !scanner_serial) {
+      return jsonResponse({ error: 'Missing required fields: barcode and scanner_serial' }, 400)
+    }
+
+    if (!validateBarcode(barcode)) {
+      return jsonResponse({ error: 'Invalid barcode format. Must be 8-13 digits.' }, 400)
+    }
+
+    if (!validateSerialNumber(scanner_serial)) {
+      return jsonResponse({ error: 'Invalid scanner serial number format' }, 400)
+    }
+
+    if (!validateQuantity(quantity)) {
+      return jsonResponse({ error: 'Invalid quantity. Must be between 1 and 1000.' }, 400)
+    }
+
+    if (action !== 'add' && action !== 'remove') {
+      return jsonResponse({ error: 'Invalid action. Must be "add" or "remove".' }, 400)
+    }
+
+    // 3. Verify scanner ownership - RLS will filter to only user's scanners
+    const { data: scanner, error: scannerError } = await supabase
+      .from('scanners')
+      .select('id, user_id, dispensa_id, name, dispense(name)')
+      .eq('serial_number', scanner_serial)
+      .maybeSingle()
+
+    if (scannerError) {
+      console.error('Scanner query error:', scannerError)
+      return jsonResponse({ error: 'Error querying scanner' }, 500)
+    }
+
+    if (!scanner) {
+      return jsonResponse({ error: 'Scanner not found or not authorized' }, 404)
+    }
+
+    // Verify the authenticated user owns this scanner
+    if (scanner.user_id !== userId) {
+      return jsonResponse({ error: 'Forbidden - You do not own this scanner' }, 403)
+    }
+
+    // Update last_seen_at (fire and forget)
+    supabase.from('scanners').update({ last_seen_at: new Date().toISOString() }).eq('id', scanner.id).then();
+
+    // 4. Handle Product - use service role only for product creation (not user-scoped)
+    // We need service role here because products are scoped to user_id and we're creating for the scanner owner
+    const serviceSupabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    const { barcode, scanner_serial, action = 'add', quantity = 1 }: ScanRequest = await req.json()
-
-    if (!barcode || !scanner_serial) return jsonResponse({ error: 'Missing fields' }, 400)
-
-    // 1. Ottimizzato: Recuperiamo scanner e nome dispensa in un colpo solo
-    const { data: scanner, error: scannerError } = await supabase
-      .from('scanners')
-      .select('id, user_id, dispensa_id, name, dispense(name)') // Join con dispense
-      .eq('serial_number', scanner_serial)
-      .maybeSingle()
-
-    if (!scanner || scannerError) return jsonResponse({ error: 'Scanner not found' }, 404)
-
-    // Aggiornamento asincrono (non blocca la risposta)
-    supabase.from('scanners').update({ last_seen_at: new Date().toISOString() }).eq('id', scanner.id).then();
-
-    // 2. Gestione Prodotto
     let productId: string
     let productName: string
     
-    const { data: existingProduct } = await supabase
+    const { data: existingProduct } = await serviceSupabase
       .from('products')
       .select('id, name')
       .eq('barcode', barcode)
@@ -110,7 +181,7 @@ Deno.serve(async (req) => {
     } else {
       const offData = await fetchOpenFoodFactsData(barcode)
       
-      const { data: newProduct, error: pError } = await supabase
+      const { data: newProduct, error: pError } = await serviceSupabase
         .from('products')
         .insert({
           barcode,
@@ -135,17 +206,16 @@ Deno.serve(async (req) => {
       productId = newProduct.id
       productName = newProduct.name
 
-      // Inserimento categorie (opzionale, asincrono)
+      // Insert categories (optional, async)
       if (offData?.categories?.length) {
         const cats = offData.categories.slice(0, 5).map((cat: string) => ({ product_id: productId, category_name: cat }));
-        supabase.from('product_categories').insert(cats).then();
+        serviceSupabase.from('product_categories').insert(cats).then();
       }
     }
 
-    // 3. Gestione Quantità con UPSERT (Evita race conditions)
+    // 5. Handle Quantity with UPSERT (Avoids race conditions)
     if (scanner.dispensa_id) {
-      // Nota: Assicurati di avere un vincolo UNIQUE su (dispensa_id, product_id) nel DB
-      const { data: currentEntry } = await supabase
+      const { data: currentEntry } = await serviceSupabase
         .from('dispense_products')
         .select('quantity')
         .eq('dispensa_id', scanner.dispensa_id)
@@ -155,7 +225,7 @@ Deno.serve(async (req) => {
       const oldQty = currentEntry?.quantity || 0;
       const newQty = action === 'add' ? oldQty + quantity : Math.max(0, oldQty - quantity);
 
-      await supabase
+      await serviceSupabase
         .from('dispense_products')
         .upsert({
           dispensa_id: scanner.dispensa_id,
@@ -165,15 +235,15 @@ Deno.serve(async (req) => {
         }, { onConflict: 'dispensa_id,product_id' })
     }
 
-    // 4. Notifiche e Log
+    // 6. Notifications and Logs
     const dispenseData = scanner.dispense as { name: string } | { name: string }[] | null;
     const locationName = Array.isArray(dispenseData) 
       ? dispenseData[0]?.name 
       : dispenseData?.name || "pantry";
     
-    // Eseguiamo log e notifiche in parallelo per velocizzare
+    // Execute log and notification in parallel for speed
     await Promise.all([
-      supabase.from('scan_logs').insert({
+      serviceSupabase.from('scan_logs').insert({
         scanner_id: scanner.id,
         dispensa_id: scanner.dispensa_id,
         product_id: productId,
@@ -181,7 +251,7 @@ Deno.serve(async (req) => {
         action,
         quantity
       }),
-      supabase.from('notifications').insert({
+      serviceSupabase.from('notifications').insert({
         user_id: scanner.user_id,
         title: action === 'add' ? 'Prodotto aggiunto' : 'Prodotto rimosso',
         message: `${quantity}x ${productName} ${action === 'add' ? 'aggiunto a' : 'rimosso da'} ${locationName}`,
@@ -191,7 +261,9 @@ Deno.serve(async (req) => {
 
     return jsonResponse({ success: true, productId, productName });
 
-  } catch (error: any) {
-    return jsonResponse({ error: error.message }, 500);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Scanner function error:', errorMessage)
+    return jsonResponse({ error: 'Internal server error' }, 500);
   }
 })
