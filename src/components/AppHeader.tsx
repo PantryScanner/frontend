@@ -7,6 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/compon
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNotificationContext } from "@/contexts/NotificationContext";
+import { GroupSwitcher } from "@/components/GroupSwitcher";
 import { cn } from "@/lib/utils";
 
 export function AppHeader() {
@@ -53,7 +54,8 @@ export function AppHeader() {
     <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6 gap-4">
       <div className="flex items-center gap-4">
         <SidebarTrigger />
-        <div className="relative w-96 max-w-md">
+        <GroupSwitcher />
+        <div className="relative w-64 max-w-md hidden md:block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Cerca prodotti, dispense..." className="pl-10" />
         </div>

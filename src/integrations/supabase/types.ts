@@ -114,8 +114,11 @@ export type Database = {
           created_at: string
           group_id: string
           id: string
+          invite_token: string | null
           invited_by: string
+          invited_by_username: string | null
           invited_email: string
+          responded_at: string | null
           role: string
           status: string
         }
@@ -123,8 +126,11 @@ export type Database = {
           created_at?: string
           group_id: string
           id?: string
+          invite_token?: string | null
           invited_by: string
+          invited_by_username?: string | null
           invited_email: string
+          responded_at?: string | null
           role?: string
           status?: string
         }
@@ -132,8 +138,11 @@ export type Database = {
           created_at?: string
           group_id?: string
           id?: string
+          invite_token?: string | null
           invited_by?: string
+          invited_by_username?: string | null
           invited_email?: string
+          responded_at?: string | null
           role?: string
           status?: string
         }
@@ -283,6 +292,7 @@ export type Database = {
           category: string | null
           created_at: string
           ecoscore: string | null
+          group_id: string | null
           id: string
           image_url: string | null
           ingredients: string | null
@@ -304,6 +314,7 @@ export type Database = {
           category?: string | null
           created_at?: string
           ecoscore?: string | null
+          group_id?: string | null
           id?: string
           image_url?: string | null
           ingredients?: string | null
@@ -325,6 +336,7 @@ export type Database = {
           category?: string | null
           created_at?: string
           ecoscore?: string | null
+          group_id?: string | null
           id?: string
           image_url?: string | null
           ingredients?: string | null
@@ -342,6 +354,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          active_group_id: string | null
           avatar_url: string | null
           created_at: string
           id: string
@@ -352,6 +365,7 @@ export type Database = {
           username: string | null
         }
         Insert: {
+          active_group_id?: string | null
           avatar_url?: string | null
           created_at?: string
           id?: string
@@ -362,6 +376,7 @@ export type Database = {
           username?: string | null
         }
         Update: {
+          active_group_id?: string | null
           avatar_url?: string | null
           created_at?: string
           id?: string
