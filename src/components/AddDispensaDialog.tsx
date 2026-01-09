@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Plus, Warehouse, Loader2 } from 'lucide-react';
 import { supabase } from "@/integrations/backend/client";
 import { useAuth } from '@/contexts/AuthContext';
+import { useActiveGroup } from '@/contexts/ActiveGroupContext';
 import { useToast } from '@/hooks/use-toast';
 
 interface AddDispensaDialogProps {
@@ -33,6 +34,7 @@ export const AddDispensaDialog = ({ onDispensaAdded }: AddDispensaDialogProps) =
   const [isLoading, setIsLoading] = useState(false);
 
   const { user } = useAuth();
+  const { activeGroup } = useActiveGroup();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,6 +58,15 @@ export const AddDispensaDialog = ({ onDispensaAdded }: AddDispensaDialogProps) =
       return;
     }
 
+    if (!activeGroup) {
+      toast({
+        variant: 'destructive',
+        title: 'Errore',
+        description: 'Devi selezionare un gruppo'
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -64,6 +75,7 @@ export const AddDispensaDialog = ({ onDispensaAdded }: AddDispensaDialogProps) =
         location: location.trim() || null,
         color,
         user_id: user.id,
+        group_id: activeGroup.id,
         products_count: 0
       });
 

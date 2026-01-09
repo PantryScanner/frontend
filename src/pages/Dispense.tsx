@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Warehouse, Package, Loader2, Cpu } from "lucide-react";
 import { supabase } from "@/integrations/backend/client";
 import { useAuth } from '@/contexts/AuthContext';
+import { useActiveGroup } from '@/contexts/ActiveGroupContext';
 import { AddDispensaDialog } from '@/components/AddDispensaDialog';
 
 interface Dispensa {
@@ -22,14 +23,16 @@ const Dispense = () => {
   const [dispense, setDispense] = useState<Dispensa[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
+  const { activeGroup } = useActiveGroup();
 
   const fetchDispense = async () => {
-    if (!user) return;
+    if (!user || !activeGroup) return;
 
     try {
       const { data: dispenseData, error: dispenseError } = await supabase
         .from('dispense')
         .select('*')
+        .eq('group_id', activeGroup.id)
         .order('created_at', { ascending: false });
 
       if (dispenseError) throw dispenseError;
@@ -62,8 +65,9 @@ const Dispense = () => {
   };
 
   useEffect(() => {
+    setIsLoading(true);
     fetchDispense();
-  }, [user]);
+  }, [user, activeGroup]);
 
   const getTimeSinceCreation = (dateStr: string) => {
     const diffMs = new Date().getTime() - new Date(dateStr).getTime();
