@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, Cpu, AlertTriangle, TrendingUp, Warehouse, Wifi, WifiOff, Loader2 } from "lucide-react";
+import { Package, Cpu, AlertTriangle, TrendingUp, Warehouse, Wifi, WifiOff, Loader2, Clock, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/backend/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveGroup } from "@/contexts/ActiveGroupContext";
+import { differenceInDays, isBefore } from "date-fns";
 
 interface DashboardStats {
   totalProducts: number;
@@ -13,6 +15,7 @@ interface DashboardStats {
   scannersTotal: number;
   belowThreshold: number;
   totalDispense: number;
+  expiringProducts: number;
 }
 
 interface RecentEvent {
@@ -27,23 +30,24 @@ interface RecentEvent {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { activeGroup, groups } = useActiveGroup();
   const [stats, setStats] = useState<DashboardStats>({
     totalProducts: 0,
     scannersOnline: 0,
     scannersTotal: 0,
     belowThreshold: 0,
     totalDispense: 0,
+    expiringProducts: 0,
   });
   const [recentEvents, setRecentEvents] = useState<RecentEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
+    if (user && activeGroup) {
       fetchDashboardData();
     }
-  }, [user]);
+  }, [user, activeGroup]);
 
-  // Helper to check if scanner is online (last seen < 5 minutes ago)
   const isScannerOnline = (lastSeenAt: string | null): boolean => {
     if (!lastSeenAt) return false;
     const lastSeen = new Date(lastSeenAt);
@@ -54,28 +58,48 @@ const Dashboard = () => {
   };
 
   const fetchDashboardData = async () => {
+    if (!activeGroup) return;
+    
     try {
-      // Fetch dispense count
-      const { count: dispenseCount } = await supabase
+      // Fetch dispense for this group
+      const { data: dispenseData, count: dispenseCount } = await supabase
         .from("dispense")
-        .select("*", { count: "exact", head: true });
+        .select("id", { count: "exact" })
+        .eq("group_id", activeGroup.id);
 
-      // Fetch scanners with last_seen_at to calculate status dynamically
+      const dispenseIds = dispenseData?.map(d => d.id) || [];
+
+      // Fetch scanners for user (scanners are user-owned)
       const { data: scanners } = await supabase.from("scanners").select("last_seen_at");
 
-      // Fetch products count
+      // Fetch products for this group
       const { count: productsCount } = await supabase
         .from("products")
-        .select("*", { count: "exact", head: true });
+        .select("*", { count: "exact", head: true })
+        .eq("group_id", activeGroup.id);
 
-      // Fetch below threshold products
-      const { data: dispenseProducts } = await supabase
-        .from("dispense_products")
-        .select("quantity, threshold");
+      // Fetch dispense products for threshold and expiry check
+      let belowThreshold = 0;
+      let expiringProducts = 0;
+      
+      if (dispenseIds.length > 0) {
+        const { data: dispenseProducts } = await supabase
+          .from("dispense_products")
+          .select("quantity, threshold, expiry_date")
+          .in("dispensa_id", dispenseIds);
 
-      const belowThreshold = dispenseProducts?.filter(
-        (p) => p.quantity <= p.threshold && p.quantity > 0
-      ).length || 0;
+        dispenseProducts?.forEach(p => {
+          if (p.quantity <= (p.threshold || 2) && p.quantity > 0) {
+            belowThreshold++;
+          }
+          if (p.expiry_date) {
+            const daysUntil = differenceInDays(new Date(p.expiry_date), new Date());
+            if (daysUntil <= 3 && daysUntil >= 0) {
+              expiringProducts++;
+            }
+          }
+        });
+      }
 
       // Fetch recent scan logs
       const { data: logs } = await supabase
@@ -91,7 +115,6 @@ const Dashboard = () => {
         .order("created_at", { ascending: false })
         .limit(8);
 
-      // Calculate online scanners dynamically
       const onlineScanners = scanners?.filter((s) => isScannerOnline(s.last_seen_at)).length || 0;
 
       setStats({
@@ -100,6 +123,7 @@ const Dashboard = () => {
         scannersTotal: scanners?.length || 0,
         belowThreshold,
         totalDispense: dispenseCount || 0,
+        expiringProducts,
       });
 
       if (logs) {
@@ -153,20 +177,10 @@ const Dashboard = () => {
       link: "/dispense",
     },
     {
-      title: "Scanner",
-      value: `${stats.scannersOnline}/${stats.scannersTotal}`,
-      icon: Cpu,
-      description: stats.scannersOnline === stats.scannersTotal && stats.scannersTotal > 0
-        ? "Tutti online"
-        : `${stats.scannersTotal - stats.scannersOnline} offline`,
-      variant: stats.scannersOnline === stats.scannersTotal ? ("success" as const) : ("warning" as const),
-      link: "/dispositivi",
-    },
-    {
       title: "Prodotti",
       value: stats.totalProducts.toString(),
       icon: Package,
-      description: "Prodotti tracciati",
+      description: "Prodotti nel gruppo",
       variant: "default" as const,
       link: "/inventario",
     },
@@ -178,15 +192,31 @@ const Dashboard = () => {
       variant: stats.belowThreshold > 0 ? ("destructive" as const) : ("success" as const),
       link: "/inventario",
     },
+    {
+      title: "In Scadenza",
+      value: stats.expiringProducts.toString(),
+      icon: Clock,
+      description: stats.expiringProducts > 0 ? "Entro 3 giorni" : "Nessuno",
+      variant: stats.expiringProducts > 0 ? ("warning" as const) : ("success" as const),
+      link: "/inventario",
+    },
   ];
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Panoramica del sistema di gestione dispense
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Panoramica di <span className="text-primary font-medium">{activeGroup?.name}</span>
+          </p>
+        </div>
+        {groups.length > 1 && (
+          <Badge variant="outline" className="gap-1">
+            <Users className="h-3 w-3" />
+            {groups.length} gruppi
+          </Badge>
+        )}
       </div>
 
       {/* Stats Grid */}
