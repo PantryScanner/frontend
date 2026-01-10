@@ -17,11 +17,12 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Users, Plus, Mail, Crown, UserPlus, Settings, Trash2, Loader2, 
-  Check, X, Clock, Warehouse, UserMinus, Edit
+  Users, Plus, Mail, Crown, UserPlus, Trash2, Loader2, 
+  Check, X, Clock, UserMinus, Edit, Send
 } from "lucide-react";
 import { supabase } from "@/integrations/backend/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveGroup } from "@/contexts/ActiveGroupContext";
 import { toast } from "sonner";
 import { useNotificationContext } from "@/contexts/NotificationContext";
 
@@ -44,28 +45,20 @@ interface GroupMember {
 interface GroupInvite {
   id: string;
   invited_email: string;
+  invited_by_username: string | null;
   role: string;
   status: string;
   created_at: string;
 }
 
-interface PendingInvite {
-  id: string;
-  group_id: string;
-  group_name: string;
-  invited_by_email: string;
-  role: string;
-}
-
 const Groups = () => {
   const { user } = useAuth();
+  const { groups, activeGroup, refreshGroups } = useActiveGroup();
   const { addLocalNotification } = useNotificationContext();
   
-  const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [invites, setInvites] = useState<GroupInvite[]>([]);
-  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -81,37 +74,11 @@ const Groups = () => {
   const [inviteRole, setInviteRole] = useState<"viewer" | "editor">("viewer");
 
   useEffect(() => {
-    if (user) {
-      fetchGroups();
-      fetchPendingInvites();
+    if (groups.length > 0 && !selectedGroup) {
+      selectGroup(groups[0]);
     }
-  }, [user]);
-
-  const fetchGroups = async () => {
-    if (!user) return;
-    try {
-      const { data, error } = await supabase
-        .from("groups")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setGroups(data || []);
-      
-      if (data && data.length > 0 && !selectedGroup) {
-        selectGroup(data[0]);
-      }
-    } catch (error) {
-      console.error("Error fetching groups:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchPendingInvites = async () => {
-    // This would need the user's email to find their invites
-    // For now, we'll leave this as a placeholder
-  };
+    setIsLoading(false);
+  }, [groups]);
 
   const selectGroup = async (group: Group) => {
     setSelectedGroup(group);
@@ -187,7 +154,7 @@ const Groups = () => {
       setNewGroupName("");
       setNewGroupDesc("");
       setIsCreateOpen(false);
-      fetchGroups();
+      refreshGroups();
     } catch (error) {
       console.error("Error creating group:", error);
       toast.error("Errore nella creazione del gruppo");
@@ -199,15 +166,29 @@ const Groups = () => {
   const handleInvite = async () => {
     if (!user || !selectedGroup || !inviteEmail.trim()) return;
     setIsSaving(true);
+    
     try {
-      const { error } = await supabase
+      // Get current user's username
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      
+      const inviterName = profile?.username || user.email?.split("@")[0] || "Un utente";
+
+      // Create the invite
+      const { data: inviteData, error } = await supabase
         .from("group_invites")
         .insert({
           group_id: selectedGroup.id,
           invited_email: inviteEmail.trim().toLowerCase(),
           invited_by: user.id,
+          invited_by_username: inviterName,
           role: inviteRole,
-        });
+        })
+        .select()
+        .single();
 
       if (error) {
         if (error.code === "23505") {
@@ -218,7 +199,28 @@ const Groups = () => {
         return;
       }
 
+      // Send email notification
+      try {
+        const { error: emailError } = await supabase.functions.invoke("send-invite-email", {
+          body: {
+            inviteId: inviteData.id,
+            groupName: selectedGroup.name,
+            inviterName,
+            inviteeEmail: inviteEmail.trim().toLowerCase(),
+            role: inviteRole,
+          },
+        });
+
+        if (emailError) {
+          console.error("Error sending email:", emailError);
+          // Don't fail the invite if email fails
+        }
+      } catch (emailErr) {
+        console.error("Email send error:", emailErr);
+      }
+
       toast.success("Invito inviato");
+      addLocalNotification("Invito", `Invito inviato a ${inviteEmail}`, "success");
       setInviteEmail("");
       setIsInviteOpen(false);
       selectGroup(selectedGroup);
@@ -243,7 +245,7 @@ const Groups = () => {
       toast.success("Gruppo eliminato");
       setDeleteGroupId(null);
       setSelectedGroup(null);
-      fetchGroups();
+      refreshGroups();
     } catch (error) {
       console.error("Error deleting group:", error);
       toast.error("Errore nell'eliminazione del gruppo");
@@ -324,7 +326,7 @@ const Groups = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold mb-2">Gruppi</h1>
-          <p className="text-muted-foreground">Condividi le dispense con famiglia e collaboratori</p>
+          <p className="text-muted-foreground">Gestisci i tuoi gruppi e invita nuovi membri</p>
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
@@ -368,7 +370,7 @@ const Groups = () => {
             <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
             <h3 className="text-lg font-medium mb-2">Nessun gruppo</h3>
             <p className="text-muted-foreground mb-4">
-              Crea un gruppo per condividere le dispense con la tua famiglia o team
+              Crea un gruppo per iniziare a organizzare le tue dispense
             </p>
             <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
               <Plus className="h-4 w-4" />
@@ -460,8 +462,8 @@ const Groups = () => {
                           </div>
                           <DialogFooter>
                             <Button variant="outline" onClick={() => setIsInviteOpen(false)}>Annulla</Button>
-                            <Button onClick={handleInvite} disabled={isSaving || !inviteEmail.trim()}>
-                              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Invia Invito"}
+                            <Button onClick={handleInvite} disabled={isSaving || !inviteEmail.trim()} className="gap-2">
+                              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4" />Invia Invito</>}
                             </Button>
                           </DialogFooter>
                         </DialogContent>
@@ -530,7 +532,7 @@ const Groups = () => {
                   <div>
                     <h4 className="font-medium mb-3 flex items-center gap-2">
                       <Mail className="h-4 w-4" />
-                      Inviti in sospeso ({invites.length})
+                      Inviti inviati ({invites.length})
                     </h4>
                     <div className="space-y-2">
                       {invites.map((invite) => (
@@ -539,18 +541,25 @@ const Groups = () => {
                           className="flex items-center justify-between p-3 rounded-lg border border-dashed"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center">
-                              <Mail className="h-4 w-4 text-muted-foreground" />
-                            </div>
+                            <Avatar className="h-9 w-9">
+                              <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                                <Mail className="h-4 w-4" />
+                              </AvatarFallback>
+                            </Avatar>
                             <div>
                               <p className="font-medium">{invite.invited_email}</p>
                               <p className="text-xs text-muted-foreground">
                                 Invitato il {new Date(invite.created_at).toLocaleDateString("it-IT")}
+                                {invite.invited_by_username && ` da ${invite.invited_by_username}`}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
                             {getRoleBadge(invite.role)}
+                            <Badge variant="outline" className="text-xs gap-1">
+                              <Clock className="h-3 w-3" />
+                              In attesa
+                            </Badge>
                             <Button
                               variant="ghost"
                               size="sm"
