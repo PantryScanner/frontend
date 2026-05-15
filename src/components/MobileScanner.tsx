@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/select";
 import {
   Loader2,
-  Camera,
   Sparkles,
   ScanLine,
   Package,
@@ -31,7 +30,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { appToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
-// --- Asset Audio ---
 const SOUND_SUCCESS =
   "https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3";
 const SOUND_ERROR =
@@ -58,7 +56,7 @@ interface SuccessFlash {
   newQuantity: number;
 }
 
-const SCAN_COOLDOWN_MS = 2000;
+const SCAN_COOLDOWN_MS = 800;
 
 export function MobileScanner({
   open,
@@ -69,18 +67,16 @@ export function MobileScanner({
   const { user } = useAuth();
   const { activeGroup } = useActiveGroup();
 
-  // Refs
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
   const lastScanRef = useRef<{ code: string; ts: number }>({ code: "", ts: 0 });
   const selectedDispensaIdRef = useRef<string>("");
   const busyRef = useRef(false);
+  const scanningActiveRef = useRef(false);
 
-  // Audio elements
   const audioSuccess = useRef<HTMLAudioElement | null>(null);
   const audioError = useRef<HTMLAudioElement | null>(null);
 
-  // State
   const [dispense, setDispense] = useState<Dispensa[]>([]);
   const [selectedDispensaId, setSelectedDispensaId] = useState<string>(
     defaultDispensaId ?? "",
@@ -90,8 +86,8 @@ export function MobileScanner({
   const [scanCount, setScanCount] = useState(0);
   const [flash, setFlash] = useState<SuccessFlash | null>(null);
   const [pulse, setPulse] = useState(false);
+  const [isHolding, setIsHolding] = useState(false);
 
-  // Initialize audio
   useEffect(() => {
     audioSuccess.current = new Audio(SOUND_SUCCESS);
     audioError.current = new Audio(SOUND_ERROR);
@@ -101,7 +97,6 @@ export function MobileScanner({
     selectedDispensaIdRef.current = selectedDispensaId;
   }, [selectedDispensaId]);
 
-  // Caricamento dispense
   useEffect(() => {
     if (!open || defaultDispensaId || !user) return;
     (async () => {
@@ -125,12 +120,18 @@ export function MobileScanner({
     })();
   }, [open, defaultDispensaId, user, activeGroup]);
 
+  useEffect(() => {
+    if (selectedDispensaId) {
+      localStorage.setItem("mobileScanner.dispensaId", selectedDispensaId);
+    }
+  }, [selectedDispensaId]);
+
   const playSound = (type: "success" | "error") => {
     const sound =
       type === "success" ? audioSuccess.current : audioError.current;
     if (sound) {
       sound.currentTime = 0;
-      sound.play().catch(() => {}); // Ignora blocchi autoplay browser
+      sound.play().catch(() => {});
     }
   };
 
@@ -159,11 +160,10 @@ export function MobileScanner({
         if (error || data?.error)
           throw new Error(error?.message || data?.error);
 
-        // Feedback Successo
         playSound("success");
         setScanCount((c) => c + 1);
         setPulse(true);
-        setTimeout(() => setPulse(false), 500);
+        setTimeout(() => setPulse(false), 400);
 
         const flashItem: SuccessFlash = {
           id: Date.now(),
@@ -174,7 +174,7 @@ export function MobileScanner({
         setFlash(flashItem);
         setTimeout(
           () => setFlash((curr) => (curr?.id === flashItem.id ? null : curr)),
-          2500,
+          2000,
         );
 
         onScanComplete?.();
@@ -192,6 +192,7 @@ export function MobileScanner({
 
   const handleDetected = useCallback(
     (barcode: string) => {
+      if (!scanningActiveRef.current) return;
       const code = barcode.trim();
       if (!code || busyRef.current) return;
 
@@ -203,12 +204,13 @@ export function MobileScanner({
         return;
       lastScanRef.current = { code, ts: now };
 
-      if (navigator.vibrate) navigator.vibrate(60);
+      if (navigator.vibrate) navigator.vibrate(40);
       submitScan(code);
     },
     [submitScan],
   );
 
+  // Keep camera always streaming while open; gate scanning via ref
   useEffect(() => {
     if (!open) return;
     let isMounted = true;
@@ -217,7 +219,9 @@ export function MobileScanner({
       BarcodeFormat.EAN_13,
       BarcodeFormat.EAN_8,
       BarcodeFormat.UPC_A,
+      BarcodeFormat.UPC_E,
       BarcodeFormat.CODE_128,
+      BarcodeFormat.CODE_39,
     ]);
     hints.set(DecodeHintType.TRY_HARDER, true);
 
@@ -249,25 +253,42 @@ export function MobileScanner({
     startCamera();
     return () => {
       isMounted = false;
+      scanningActiveRef.current = false;
       if (controlsRef.current) controlsRef.current.stop();
+      const stream = videoRef.current?.srcObject as MediaStream | null;
+      stream?.getTracks().forEach((t) => t.stop());
+      setCameraReady(false);
     };
   }, [open, handleDetected]);
 
+  const startScanning = () => {
+    if (!selectedDispensaIdRef.current) {
+      appToast.warning("Seleziona prima una dispensa");
+      return;
+    }
+    scanningActiveRef.current = true;
+    setIsHolding(true);
+    if (navigator.vibrate) navigator.vibrate(20);
+  };
+
+  const stopScanning = () => {
+    scanningActiveRef.current = false;
+    setIsHolding(false);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg p-0 overflow-hidden sm:rounded-2xl border-none gap-0">
-        <DialogHeader className="px-4 pt-4 pb-4 bg-background">
+      <DialogContent className="max-w-lg p-0 overflow-hidden sm:rounded-2xl border-none gap-0 my-4 max-h-[calc(100vh-2rem)] flex flex-col">
+        <DialogHeader className="px-4 pt-4 pb-3 bg-background shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="bg-primary/10 p-2 rounded-lg">
                 <ScanLine className="h-5 w-5 text-primary" />
               </div>
-              <div>
-                <DialogTitle className="text-base">
-                  Scansione Rapida
-                </DialogTitle>
+              <div className="text-left">
+                <DialogTitle className="text-base">Scanner</DialogTitle>
                 <DialogDescription className="text-xs">
-                  Inquadra il codice a barre
+                  Tieni premuto il pulsante per scansionare
                 </DialogDescription>
               </div>
             </div>
@@ -275,7 +296,7 @@ export function MobileScanner({
         </DialogHeader>
 
         {!defaultDispensaId && (
-          <div className="px-4 pb-3 bg-background">
+          <div className="px-4 pb-3 bg-background shrink-0">
             <Select
               value={selectedDispensaId}
               onValueChange={setSelectedDispensaId}
@@ -300,7 +321,7 @@ export function MobileScanner({
           </div>
         )}
 
-        <div className="relative bg-black aspect-[4/5] overflow-hidden">
+        <div className="relative bg-black flex-1 min-h-[280px] overflow-hidden">
           <video
             ref={videoRef}
             className="absolute inset-0 w-full h-full object-cover"
@@ -308,7 +329,6 @@ export function MobileScanner({
             muted
           />
 
-          {/* Flash Overlay */}
           <div
             className={cn(
               "absolute inset-0 transition-opacity duration-300 pointer-events-none z-10",
@@ -316,28 +336,27 @@ export function MobileScanner({
             )}
           />
 
-          {/* Target Frame */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-            <div className="w-64 h-48 border-2 border-white/30 rounded-3xl relative shadow-[0_0_0_9999px_rgba(0,0,0,0.6)]">
-              <div
-                className={cn(
-                  "absolute inset-x-0 h-0.5 bg-primary shadow-[0_0_15px_rgba(var(--primary),0.8)] top-1/2 -translate-y-1/2",
-                  cameraReady && "animate-[bounce_2s_infinite]",
-                )}
-              />
-              {/* Corner Accents */}
-              <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-primary rounded-tl-lg" />
-              <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-primary rounded-tr-lg" />
-              <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-primary rounded-bl-lg" />
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-primary rounded-br-lg" />
+            <div
+              className={cn(
+                "w-64 h-44 border-2 rounded-3xl relative shadow-[0_0_0_9999px_rgba(0,0,0,0.55)] transition-colors",
+                isHolding ? "border-primary" : "border-white/30",
+              )}
+            >
+              {isHolding && (
+                <div className="absolute inset-x-0 h-0.5 bg-primary shadow-[0_0_15px_rgba(var(--primary),0.8)] top-1/2 -translate-y-1/2 animate-[bounce_1.2s_infinite]" />
+              )}
+              <div className={cn("absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 rounded-tl-lg transition-colors", isHolding ? "border-primary" : "border-white/70")} />
+              <div className={cn("absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 rounded-tr-lg transition-colors", isHolding ? "border-primary" : "border-white/70")} />
+              <div className={cn("absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 rounded-bl-lg transition-colors", isHolding ? "border-primary" : "border-white/70")} />
+              <div className={cn("absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 rounded-br-lg transition-colors", isHolding ? "border-primary" : "border-white/70")} />
             </div>
           </div>
 
-          {/* States */}
           {!cameraReady && !cameraError && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-black/80 gap-3 z-20">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Ottimizzazione sensore...</p>
+              <p className="text-sm font-medium">Avvio fotocamera...</p>
             </div>
           )}
 
@@ -345,26 +364,18 @@ export function MobileScanner({
             <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-black/90 p-6 text-center gap-4 z-20">
               <AlertCircle className="h-10 w-10 text-destructive" />
               <p className="text-sm">{cameraError}</p>
-              <Button
-                variant="outline"
-                onClick={() => window.location.reload()}
-              >
+              <Button variant="outline" onClick={() => window.location.reload()}>
                 Riprova
               </Button>
             </div>
           )}
 
-          {/* Success Popup (Flash Card) */}
           {flash && (
-            <div className="absolute bottom-6 left-6 right-6 z-30 animate-in fade-in zoom-in-95 slide-in-from-bottom-10 duration-300">
-              <div className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md shadow-2xl border-2 border-green-500/50 p-4 rounded-2xl flex items-center gap-4">
-                <div className="h-14 w-14 rounded-xl bg-muted flex items-center justify-center overflow-hidden border shadow-sm shrink-0">
+            <div className="absolute top-4 left-4 right-4 z-30 animate-in fade-in zoom-in-95 slide-in-from-top-4 duration-300">
+              <div className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md shadow-2xl border-2 border-green-500/50 p-3 rounded-2xl flex items-center gap-3">
+                <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center overflow-hidden border shadow-sm shrink-0">
                   {flash.productImage ? (
-                    <img
-                      src={flash.productImage}
-                      className="object-cover h-full w-full"
-                      alt="prodotto"
-                    />
+                    <img src={flash.productImage} className="object-cover h-full w-full" alt="prodotto" />
                   ) : (
                     <Package className="h-6 w-6 text-muted-foreground" />
                   )}
@@ -376,17 +387,12 @@ export function MobileScanner({
                       Aggiunto
                     </span>
                   </div>
-                  <p className="text-sm font-bold truncate leading-tight">
-                    {flash.productName}
-                  </p>
+                  <p className="text-sm font-bold truncate leading-tight">{flash.productName}</p>
                   <p className="text-xs text-muted-foreground">
-                    In dispensa:{" "}
-                    <span className="font-semibold text-foreground">
-                      {flash.newQuantity}
-                    </span>
+                    Totale: <span className="font-semibold text-foreground">{flash.newQuantity}</span>
                   </p>
                 </div>
-                <div className="bg-green-500 text-white h-10 w-10 rounded-full flex items-center justify-center font-bold shadow-lg">
+                <div className="bg-green-500 text-white h-9 w-9 rounded-full flex items-center justify-center font-bold shadow-lg text-sm">
                   +1
                 </div>
               </div>
@@ -394,19 +400,53 @@ export function MobileScanner({
           )}
         </div>
 
-        <div className="p-4 flex items-center justify-between bg-background border-t">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/5 rounded-full text-xs font-medium text-primary">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>{scanCount} prodotti in questa sessione</span>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onOpenChange(false)}
-            className="text-muted-foreground font-semibold"
+        {/* Hold-to-scan trigger */}
+        <div className="bg-background border-t px-4 pt-4 pb-5 shrink-0 flex flex-col items-center gap-3">
+          <button
+            type="button"
+            aria-label="Tieni premuto per scansionare"
+            disabled={!cameraReady}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+              startScanning();
+            }}
+            onPointerUp={stopScanning}
+            onPointerCancel={stopScanning}
+            onPointerLeave={stopScanning}
+            onContextMenu={(e) => e.preventDefault()}
+            className={cn(
+              "select-none touch-none relative h-20 w-20 rounded-full flex items-center justify-center font-bold text-primary-foreground transition-all duration-150 shadow-lg",
+              "bg-gradient-to-br from-primary to-primary/70",
+              "disabled:opacity-50 disabled:cursor-not-allowed",
+              isHolding
+                ? "scale-110 shadow-[0_0_40px_hsl(var(--primary)/0.7)] ring-4 ring-primary/40"
+                : "active:scale-95 hover:scale-105",
+            )}
           >
-            Fine
-          </Button>
+            {isHolding && (
+              <span className="absolute inset-0 rounded-full animate-ping bg-primary/30" />
+            )}
+            <ScanLine className="h-8 w-8 relative z-10" />
+          </button>
+          <p className="text-xs text-muted-foreground font-medium">
+            {isHolding ? "Scansione attiva..." : "Tieni premuto per scansionare"}
+          </p>
+
+          <div className="w-full flex items-center justify-between pt-1">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/5 rounded-full text-xs font-medium text-primary">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>{scanCount} scansionati</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              className="text-muted-foreground font-semibold"
+            >
+              Chiudi
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
