@@ -288,6 +288,8 @@ const Inventario = () => {
             </DialogContent>
           </Dialog>
 
+          <ExportInventoryDialog products={products} dispense={dispense} groupName={activeGroup?.name} />
+
           {/* Import Wizard Dialog */}
           <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
             <DialogTrigger asChild>
