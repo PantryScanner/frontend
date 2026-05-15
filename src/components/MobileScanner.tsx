@@ -8,13 +8,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -23,24 +16,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Loader2,
   Camera,
-  Plus,
-  Minus,
   Sparkles,
   ScanLine,
-  X,
-  CheckCircle2,
   Package,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveGroup } from "@/contexts/ActiveGroupContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { appToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+
+// --- Asset Audio ---
+const SOUND_SUCCESS =
+  "https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3";
+const SOUND_ERROR =
+  "https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3";
 
 interface Dispensa {
   id: string;
@@ -56,20 +51,14 @@ interface MobileScannerProps {
   onScanComplete?: () => void;
 }
 
-interface PendingScan {
-  barcode: string;
-}
 interface SuccessFlash {
   id: number;
   productName: string;
   productImage: string | null;
-  productBrand: string | null;
   newQuantity: number;
-  delta: number;
-  action: "add" | "remove";
 }
 
-const SCAN_COOLDOWN_MS = 1800;
+const SCAN_COOLDOWN_MS = 2000;
 
 export function MobileScanner({
   open,
@@ -80,43 +69,42 @@ export function MobileScanner({
   const { user } = useAuth();
   const { activeGroup } = useActiveGroup();
 
-  // Refs per logica interna
+  // Refs
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
   const lastScanRef = useRef<{ code: string; ts: number }>({ code: "", ts: 0 });
-  const isLongPressRef = useRef(false);
   const selectedDispensaIdRef = useRef<string>("");
   const busyRef = useRef(false);
-  const longPressTimer = useRef<number | null>(null);
+
+  // Audio elements
+  const audioSuccess = useRef<HTMLAudioElement | null>(null);
+  const audioError = useRef<HTMLAudioElement | null>(null);
 
   // State
   const [dispense, setDispense] = useState<Dispensa[]>([]);
-  // Inizializzato a stringa vuota per evitare l'errore "controlled vs uncontrolled"
   const [selectedDispensaId, setSelectedDispensaId] = useState<string>(
     defaultDispensaId ?? "",
   );
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [pendingScan, setPendingScan] = useState<PendingScan | null>(null);
-  const [confirmQty, setConfirmQty] = useState(1);
   const [scanCount, setScanCount] = useState(0);
   const [flash, setFlash] = useState<SuccessFlash | null>(null);
   const [pulse, setPulse] = useState(false);
 
-  // Sincronizza i ref per evitare letture stale nelle callback asincrone
+  // Initialize audio
+  useEffect(() => {
+    audioSuccess.current = new Audio(SOUND_SUCCESS);
+    audioError.current = new Audio(SOUND_ERROR);
+  }, []);
+
   useEffect(() => {
     selectedDispensaIdRef.current = selectedDispensaId;
   }, [selectedDispensaId]);
-  useEffect(() => {
-    busyRef.current = busy;
-  }, [busy]);
 
-  // Caricamento dispense (Ottimizzato: rimosso selectedDispensaId dalle dipendenze)
+  // Caricamento dispense
   useEffect(() => {
     if (!open || defaultDispensaId || !user) return;
     (async () => {
-      console.log("[Scanner] Caricamento dispense...");
       let q = supabase.from("dispense").select("id, name, color, group_id");
       if (activeGroup) {
         q = q.or(
@@ -137,38 +125,51 @@ export function MobileScanner({
     })();
   }, [open, defaultDispensaId, user, activeGroup]);
 
-  // Invio scansione al database
+  const playSound = (type: "success" | "error") => {
+    const sound =
+      type === "success" ? audioSuccess.current : audioError.current;
+    if (sound) {
+      sound.currentTime = 0;
+      sound.play().catch(() => {}); // Ignora blocchi autoplay browser
+    }
+  };
+
   const submitScan = useCallback(
-    async (barcode: string, action: "add" | "remove", quantity: number) => {
+    async (barcode: string) => {
       const dispensaId = selectedDispensaIdRef.current;
       if (!dispensaId) {
         appToast.warning("Seleziona prima una dispensa");
         return;
       }
-      setBusy(true);
+
+      busyRef.current = true;
       try {
         const { data, error } = await supabase.functions.invoke(
           "mobile-scan-product",
           {
-            body: { barcode, dispensa_id: dispensaId, action, quantity },
+            body: {
+              barcode,
+              dispensa_id: dispensaId,
+              action: "add",
+              quantity: 1,
+            },
           },
         );
 
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
+        if (error || data?.error)
+          throw new Error(error?.message || data?.error);
 
+        // Feedback Successo
+        playSound("success");
         setScanCount((c) => c + 1);
         setPulse(true);
-        setTimeout(() => setPulse(false), 600);
+        setTimeout(() => setPulse(false), 500);
 
         const flashItem: SuccessFlash = {
           id: Date.now(),
-          productName: data?.productName ?? "Prodotto",
+          productName: data?.productName ?? "Prodotto aggiunto",
           productImage: data?.productImage ?? null,
-          productBrand: data?.productBrand ?? null,
           newQuantity: data?.newQuantity ?? 0,
-          delta: quantity,
-          action,
         };
         setFlash(flashItem);
         setTimeout(
@@ -178,18 +179,17 @@ export function MobileScanner({
 
         onScanComplete?.();
       } catch (e: any) {
-        console.error("[Scanner] Errore invio:", e);
+        playSound("error");
         appToast.error("Errore", {
-          description: e.message || "Scansione fallita",
+          description: e.message || "Prodotto non trovato",
         });
       } finally {
-        setBusy(false);
+        busyRef.current = false;
       }
     },
     [onScanComplete],
   );
 
-  // Gestione rilevamento codice
   const handleDetected = useCallback(
     (barcode: string) => {
       const code = barcode.trim();
@@ -203,22 +203,14 @@ export function MobileScanner({
         return;
       lastScanRef.current = { code, ts: now };
 
-      if (navigator.vibrate) navigator.vibrate(40);
-
-      if (isLongPressRef.current) {
-        setPendingScan({ barcode: code });
-        setConfirmQty(1);
-      } else {
-        submitScan(code, "add", 1);
-      }
+      if (navigator.vibrate) navigator.vibrate(60);
+      submitScan(code);
     },
     [submitScan],
   );
 
-  // AVVIO FOTOCAMERA - Logica robusta
   useEffect(() => {
     if (!open) return;
-
     let isMounted = true;
     const hints = new Map();
     hints.set(DecodeHintType.POSSIBLE_FORMATS, [
@@ -232,277 +224,191 @@ export function MobileScanner({
     const reader = new BrowserMultiFormatReader(hints);
 
     const startCamera = async () => {
-      // Aspettiamo un tick per assicurarci che il ref video esista
-      await new Promise((r) => setTimeout(r, 100));
+      await new Promise((r) => setTimeout(r, 200));
       if (!videoRef.current || !isMounted) return;
 
       try {
-        console.log("[Scanner] Richiesta permessi e avvio...");
-        const constraints: MediaStreamConstraints = {
-          video: { facingMode: { ideal: "environment" } },
-          audio: false,
-        };
-
         const controls = await reader.decodeFromConstraints(
-          constraints,
+          { video: { facingMode: { ideal: "environment" } } },
           videoRef.current,
           (result) => {
             if (result && isMounted) handleDetected(result.getText());
           },
         );
-
         if (!isMounted) {
           controls.stop();
           return;
         }
-
         controlsRef.current = controls;
         setCameraReady(true);
-        console.log("[Scanner] Camera avviata correttamente.");
-      } catch (err: any) {
-        console.error("[Scanner] Errore camera:", err);
-        if (isMounted) setCameraError("Permesso negato o camera non trovata.");
+      } catch (err) {
+        if (isMounted) setCameraError("Impossibile accedere alla fotocamera.");
       }
     };
 
     startCamera();
-
     return () => {
       isMounted = false;
-      console.log("[Scanner] Spegnimento camera...");
-      if (controlsRef.current) {
-        controlsRef.current.stop();
-        controlsRef.current = null;
-      }
-      if (videoRef.current?.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach((track) => track.stop());
-        videoRef.current.srcObject = null;
-      }
+      if (controlsRef.current) controlsRef.current.stop();
     };
   }, [open, handleDetected]);
 
-  // Modalità manuale (Pressione prolungata)
-  const startLongPress = () => {
-    longPressTimer.current = window.setTimeout(() => {
-      isLongPressRef.current = true;
-      if (navigator.vibrate) navigator.vibrate([30, 30, 30]);
-      appToast.info("Modalità manuale attiva");
-    }, 500);
-  };
-
-  const endLongPress = () => {
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-    setTimeout(() => {
-      isLongPressRef.current = false;
-    }, 300);
-  };
-
-  const handleClose = () => {
-    onOpenChange(false);
-    setScanCount(0);
-    setFlash(null);
-  };
-
   return (
-    <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg p-0 overflow-hidden sm:rounded-2xl border-none">
-          <DialogHeader className="px-4 pt-4 pb-2">
-            <DialogTitle className="flex items-center gap-2">
-              <ScanLine className="h-5 w-5 text-primary" />
-              Scanner
-            </DialogTitle>
-            <DialogDescription>
-              Inquadra un codice a barre per aggiungerlo.
-            </DialogDescription>
-          </DialogHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg p-0 overflow-hidden sm:rounded-2xl border-none gap-0">
+        <DialogHeader className="px-4 pt-4 pb-4 bg-background">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="bg-primary/10 p-2 rounded-lg">
+                <ScanLine className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="text-base">
+                  Scansione Rapida
+                </DialogTitle>
+                <DialogDescription className="text-xs">
+                  Inquadra il codice a barre
+                </DialogDescription>
+              </div>
+            </div>
+          </div>
+        </DialogHeader>
 
-          {!defaultDispensaId && (
-            <div className="px-4 pb-3">
-              <Select
-                value={selectedDispensaId}
-                onValueChange={setSelectedDispensaId}
-              >
-                <SelectTrigger className="w-full bg-muted/50 border-none">
-                  <SelectValue placeholder="Scegli dispensa" />
-                </SelectTrigger>
-                <SelectContent>
-                  {dispense.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="h-2 w-2 rounded-full"
-                          style={{ background: d.color || "#ccc" }}
-                        />
-                        {d.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        {!defaultDispensaId && (
+          <div className="px-4 pb-3 bg-background">
+            <Select
+              value={selectedDispensaId}
+              onValueChange={setSelectedDispensaId}
+            >
+              <SelectTrigger className="w-full bg-muted/50 border-none h-11">
+                <SelectValue placeholder="Scegli destinazione" />
+              </SelectTrigger>
+              <SelectContent>
+                {dispense.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="h-2 w-2 rounded-full"
+                        style={{ background: d.color || "#ccc" }}
+                      />
+                      {d.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        <div className="relative bg-black aspect-[4/5] overflow-hidden">
+          <video
+            ref={videoRef}
+            className="absolute inset-0 w-full h-full object-cover"
+            playsInline
+            muted
+          />
+
+          {/* Flash Overlay */}
+          <div
+            className={cn(
+              "absolute inset-0 transition-opacity duration-300 pointer-events-none z-10",
+              pulse ? "bg-green-500/30 opacity-100" : "opacity-0",
+            )}
+          />
+
+          {/* Target Frame */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+            <div className="w-64 h-48 border-2 border-white/30 rounded-3xl relative shadow-[0_0_0_9999px_rgba(0,0,0,0.6)]">
+              <div
+                className={cn(
+                  "absolute inset-x-0 h-0.5 bg-primary shadow-[0_0_15px_rgba(var(--primary),0.8)] top-1/2 -translate-y-1/2",
+                  cameraReady && "animate-[bounce_2s_infinite]",
+                )}
+              />
+              {/* Corner Accents */}
+              <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-primary rounded-tl-lg" />
+              <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-primary rounded-tr-lg" />
+              <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-primary rounded-bl-lg" />
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-primary rounded-br-lg" />
+            </div>
+          </div>
+
+          {/* States */}
+          {!cameraReady && !cameraError && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-black/80 gap-3 z-20">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-sm font-medium">Ottimizzazione sensore...</p>
             </div>
           )}
 
-          <div
-            className="relative bg-black aspect-[4/5] sm:aspect-video overflow-hidden"
-            onPointerDown={startLongPress}
-            onPointerUp={endLongPress}
-          >
-            <video
-              ref={videoRef}
-              className="absolute inset-0 w-full h-full object-cover"
-              playsInline
-              muted
-            />
-
-            {/* Overlay feedback visivo */}
-            <div
-              className={cn(
-                "absolute inset-0 transition-opacity duration-300 pointer-events-none",
-                pulse ? "bg-primary/20 opacity-100" : "opacity-0",
-              )}
-            />
-
-            {/* Mirino */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-64 h-48 border-2 border-primary/50 rounded-2xl relative shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]">
-                <div
-                  className={cn(
-                    "absolute inset-x-0 h-0.5 bg-primary/80 top-1/2",
-                    cameraReady && "animate-pulse",
-                  )}
-                />
-              </div>
+          {cameraError && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-black/90 p-6 text-center gap-4 z-20">
+              <AlertCircle className="h-10 w-10 text-destructive" />
+              <p className="text-sm">{cameraError}</p>
+              <Button
+                variant="outline"
+                onClick={() => window.location.reload()}
+              >
+                Riprova
+              </Button>
             </div>
+          )}
 
-            {/* Stato Caricamento / Errore */}
-            {!cameraReady && !cameraError && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-black/80 gap-3">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm font-medium">Avvio fotocamera...</p>
-              </div>
-            )}
-
-            {cameraError && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-black/90 p-6 text-center gap-4">
-                <Camera className="h-10 w-10 text-destructive" />
-                <p className="text-sm">{cameraError}</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.location.reload()}
-                >
-                  Ricarica pagina
-                </Button>
-              </div>
-            )}
-
-            {/* Success Card */}
-            {flash && (
-              <div className="absolute bottom-4 left-4 right-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <div className="bg-background/95 backdrop-blur shadow-xl border p-3 rounded-xl flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
-                    {flash.productImage ? (
-                      <img
-                        src={flash.productImage}
-                        className="object-cover h-full w-full"
-                      />
-                    ) : (
-                      <Package className="text-muted-foreground" />
-                    )}
+          {/* Success Popup (Flash Card) */}
+          {flash && (
+            <div className="absolute bottom-6 left-6 right-6 z-30 animate-in fade-in zoom-in-95 slide-in-from-bottom-10 duration-300">
+              <div className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md shadow-2xl border-2 border-green-500/50 p-4 rounded-2xl flex items-center gap-4">
+                <div className="h-14 w-14 rounded-xl bg-muted flex items-center justify-center overflow-hidden border shadow-sm shrink-0">
+                  {flash.productImage ? (
+                    <img
+                      src={flash.productImage}
+                      className="object-cover h-full w-full"
+                      alt="prodotto"
+                    />
+                  ) : (
+                    <Package className="h-6 w-6 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-green-600 dark:text-green-400">
+                      Aggiunto
+                    </span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold truncate">
-                      {flash.productName}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Totale: {flash.newQuantity}
-                    </p>
-                  </div>
-                  <div
-                    className={cn(
-                      "text-lg font-black",
-                      flash.action === "add"
-                        ? "text-green-500"
-                        : "text-red-500",
-                    )}
-                  >
-                    {flash.action === "add" ? "+" : "-"}
-                    {flash.delta}
-                  </div>
+                  <p className="text-sm font-bold truncate leading-tight">
+                    {flash.productName}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    In dispensa:{" "}
+                    <span className="font-semibold text-foreground">
+                      {flash.newQuantity}
+                    </span>
+                  </p>
+                </div>
+                <div className="bg-green-500 text-white h-10 w-10 rounded-full flex items-center justify-center font-bold shadow-lg">
+                  +1
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+        </div>
 
-          <div className="p-4 flex items-center justify-between bg-muted/30">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Sparkles className="h-3 w-3" />
-              <span>{scanCount} prodotti aggiunti</span>
-            </div>
-            <Button variant="ghost" size="sm" onClick={handleClose}>
-              Chiudi
-            </Button>
+        <div className="p-4 flex items-center justify-between bg-background border-t">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/5 rounded-full text-xs font-medium text-primary">
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>{scanCount} prodotti in questa sessione</span>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Manual Selection Sheet */}
-      <Sheet
-        open={!!pendingScan}
-        onOpenChange={(o) => !o && setPendingScan(null)}
-      >
-        <SheetContent side="bottom" className="rounded-t-3xl p-6">
-          <SheetHeader className="mb-4">
-            <SheetTitle>Conferma quantità</SheetTitle>
-          </SheetHeader>
-          <div className="flex flex-col gap-6 py-4">
-            <div className="flex items-center justify-center gap-6">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-14 w-14 rounded-full"
-                onClick={() => setConfirmQty((q) => Math.max(1, q - 1))}
-              >
-                <Minus />
-              </Button>
-              <span className="text-4xl font-bold w-12 text-center">
-                {confirmQty}
-              </span>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-14 w-14 rounded-full"
-                onClick={() => setConfirmQty((q) => q + 1)}
-              >
-                <Plus />
-              </Button>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Button
-                variant="secondary"
-                className="h-12"
-                onClick={() => {
-                  submitScan(pendingScan!.barcode, "remove", confirmQty);
-                  setPendingScan(null);
-                }}
-              >
-                Rimuovi
-              </Button>
-              <Button
-                className="h-12"
-                onClick={() => {
-                  submitScan(pendingScan!.barcode, "add", confirmQty);
-                  setPendingScan(null);
-                }}
-              >
-                Aggiungi
-              </Button>
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
-    </>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+            className="text-muted-foreground font-semibold"
+          >
+            Fine
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
