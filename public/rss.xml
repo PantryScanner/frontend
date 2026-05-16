@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>PantryOS Blog</title>
+    <link>https://pantryos.lovable.app/blog</link>
+    <description>Guide, idee e strategie per organizzare la dispensa, ridurre lo spreco alimentare e rendere la cucina smart.</description>
+    <language>it-IT</language>
+    <lastBuildDate>Sat, 16 May 2026 21:56:54 GMT</lastBuildDate>
+    <atom:link href="https://pantryos.lovable.app/rss.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Getting Started with PantryOS: la guida completa in 10 minuti</title>
+      <link>https://pantryos.lovable.app/blog/guide/getting-started-with-pantryos</link>
+      <guid isPermaLink="true">https://pantryos.lovable.app/blog/guide/getting-started-with-pantryos</guid>
+      <pubDate>Tue, 12 May 2026 00:00:00 GMT</pubDate>
+      <description>Come configurare PantryOS in pochi minuti: gruppi, dispense, scanner mobile e prime scorte. La guida ufficiale per iniziare.</description>
+      <category>guide</category>
+      <author>noreply@pantryos.app (Matteo Q.)</author>
+    </item>
+    <item>
+      <title>Come organizzare la dispensa: il metodo PantryOS in 7 passi</title>
+      <link>https://pantryos.lovable.app/blog/pantry-management/come-organizzare-la-dispensa</link>
+      <guid isPermaLink="true">https://pantryos.lovable.app/blog/pantry-management/come-organizzare-la-dispensa</guid>
+      <pubDate>Sun, 10 May 2026 00:00:00 GMT</pubDate>
+      <description>Un sistema pratico e ripetibile per organizzare la dispensa di casa, ridurre gli sprechi e ritrovare tutto in 3 secondi.</description>
+      <category>pantry-management</category>
+      <author>noreply@pantryos.app (Matteo Q.)</author>
+    </item>
+    <item>
+      <title>How to organize your pantry: the 7-step PantryOS method</title>
+      <link>https://pantryos.lovable.app/blog/pantry-management/how-to-organize-pantry</link>
+      <guid isPermaLink="true">https://pantryos.lovable.app/blog/pantry-management/how-to-organize-pantry</guid>
+      <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+      <description>A practical, repeatable system to organize your home pantry, cut food waste, and find anything in 3 seconds.</description>
+      <category>pantry-management</category>
+      <author>noreply@pantryos.app (Matteo Q.)</author>
+    </item>
+    <item>
+      <title>The best pantry inventory app in 2026 (and what to look for)</title>
+      <link>https://pantryos.lovable.app/blog/pantry-management/pantry-inventory-app</link>
+      <guid isPermaLink="true">https://pantryos.lovable.app/blog/pantry-management/pantry-inventory-app</guid>
+      <pubDate>Wed, 06 May 2026 00:00:00 GMT</pubDate>
+      <description>What separates a good pantry inventory app from a spreadsheet. Features that matter, mistakes to avoid, and a hands-on look at PantryOS.</description>
+      <category>pantry-management</category>
+      <author>noreply@pantryos.app (Matteo Q.)</author>
+    </item>
+    <item>
+      <title>Reduce food waste at home: 12 changes that actually work</title>
+      <link>https://pantryos.lovable.app/blog/food-waste/reduce-food-waste-home</link>
+      <guid isPermaLink="true">https://pantryos.lovable.app/blog/food-waste/reduce-food-waste-home</guid>
+      <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
+      <description>Households throw away ~30% of the food they buy. Here&apos;s a concrete, evidence-based playbook to cut that number in half this month.</description>
+      <category>food-waste</category>
+      <author>noreply@pantryos.app (Matteo Q.)</author>
+    </item>
+    <item>
+      <title>Barcode scanner for your pantry: from camera to one-handed workflow</title>
+      <link>https://pantryos.lovable.app/blog/smart-kitchen/barcode-scanner-pantry</link>
+      <guid isPermaLink="true">https://pantryos.lovable.app/blog/smart-kitchen/barcode-scanner-pantry</guid>
+      <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
+      <description>How a barcode scanner turns pantry tracking from a chore into a 2-second habit. Phone camera, hardware scanners, and the PantryOS workflow.</description>
+      <category>smart-kitchen</category>
+      <author>noreply@pantryos.app (Matteo Q.)</author>
+    </item>
+    <item>
+      <title>Tracciare le scadenze in cucina: il sistema che azzera gli sprechi</title>
+      <link>https://pantryos.lovable.app/blog/guide/expiration-date-tracking</link>
+      <guid isPermaLink="true">https://pantryos.lovable.app/blog/guide/expiration-date-tracking</guid>
+      <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
+      <description>Un metodo semplice (digitale e analogico) per tracciare le date di scadenza di dispensa, frigo e freezer senza diventare maniaci.</description>
+      <category>guide</category>
+      <author>noreply@pantryos.app (Matteo Q.)</author>
+    </item>
+  </channel>
+</rss>
