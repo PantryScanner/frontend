@@ -30,6 +30,11 @@ import Pricing from "./pages/Pricing";
 import Profile from "./pages/Profile";
 import Groups from "./pages/Groups";
 import Scan from "./pages/Scan";
+import BlogHome from "./pages/blog/BlogHome";
+import BlogPost from "./pages/blog/BlogPost";
+import BlogCategory from "./pages/blog/BlogCategory";
+import BlogTag, { BlogTagsIndex } from "./pages/blog/BlogTag";
+import BlogSearch from "./pages/blog/BlogSearch";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -95,6 +100,12 @@ const App = () => (
                   <Route path="/profilo" element={<ProtectedRoute><AppLayout><Profile /></AppLayout></ProtectedRoute>} />
                   <Route path="/gruppi" element={<ProtectedRoute><AppLayout><Groups /></AppLayout></ProtectedRoute>} />
                   <Route path="/scan" element={<ProtectedRoute><AppLayout><Scan /></AppLayout></ProtectedRoute>} />
+                  <Route path="/blog" element={<BlogHome />} />
+                  <Route path="/blog/cerca" element={<BlogSearch />} />
+                  <Route path="/blog/tags" element={<BlogTagsIndex />} />
+                  <Route path="/blog/tag/:tag" element={<BlogTag />} />
+                  <Route path="/blog/categoria/:category" element={<BlogCategory />} />
+                  <Route path="/blog/:category/:slug" element={<BlogPost />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>
