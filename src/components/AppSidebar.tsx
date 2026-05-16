@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Package, Warehouse, Cpu, BarChart3, HelpCircle, LogOut, User, Users, ScanLine } from "lucide-react";
+import { LayoutDashboard, Package, Warehouse, Cpu, BarChart3, HelpCircle, LogOut, User, Users, ScanLine, BookOpen } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter, useSidebar } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ const menuItems = [
   { title: "Scansiona", url: "/scan", icon: ScanLine },
   { title: "Grafici", url: "/grafici", icon: BarChart3 },
   { title: "Gruppi", url: "/gruppi", icon: Users },
+  { title: "Blog", url: "/blog", icon: BookOpen },
 ];
 
 export function AppSidebar() {
