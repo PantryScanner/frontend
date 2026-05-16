@@ -13,13 +13,11 @@ interface ScanRequest {
   quantity?: number;
 }
 
-// ─── Validatori ────────────────────────────────────────────────────────────────
 const validateBarcode = (b: string) => /^[A-Za-z0-9\-_.]{4,48}$/.test(b);
 const isNumericBarcode = (b: string) => /^\d{8,14}$/.test(b);
 const validateQuantity = (q: unknown): q is number =>
   typeof q === "number" && Number.isInteger(q) && q >= 1 && q <= 1000;
 
-// ─── Helper ───────────────────────────────────────────────────────────────────
 const cleanCategory = (cat: string) => cat.replace(/^[a-z]{2}:/, "").trim();
 
 function json(d: Record<string, unknown>, status = 200) {
@@ -29,7 +27,6 @@ function json(d: Record<string, unknown>, status = 200) {
   });
 }
 
-// ─── OpenFoodFacts API ─────────────────────────────────────────────────────────
 async function fetchOpenFoodFactsData(barcode: string) {
   try {
     const res = await fetch(
@@ -42,8 +39,6 @@ async function fetchOpenFoodFactsData(barcode: string) {
     if (data.status !== 1 || !data.product) return null;
 
     const p = data.product;
-
-    // Estraiamo la lista delle categorie come array di stringhe
     const categoriesTags: string[] = (p.categories_tags ?? []).map(
       cleanCategory,
     );
@@ -57,7 +52,7 @@ async function fetchOpenFoodFactsData(barcode: string) {
         p.product_name ||
         "Prodotto Sconosciuto",
       brand: p.brands?.split(",")[0]?.trim() || null,
-      category: mainCategory, // Categoria principale per la tabella products
+      category: mainCategory,
       image_url: p.image_front_url || p.image_url || null,
       ingredients: p.ingredients_text_it || p.ingredients_text || null,
       nutriscore: p.nutriscore_grade || null,
@@ -73,7 +68,7 @@ async function fetchOpenFoodFactsData(barcode: string) {
             salt: p.nutriments["salt_100g"] ?? null,
           }
         : null,
-      categories_for_rel: categoriesTags.slice(0, 10), // Limitiamo a 10 per non intasare il DB
+      categories_for_rel: categoriesTags.slice(0, 10),
     };
   } catch (e) {
     console.error("[OFF] Fetch error:", e);
@@ -81,7 +76,6 @@ async function fetchOpenFoodFactsData(barcode: string) {
   }
 }
 
-// ─── Main Handler ──────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
@@ -92,76 +86,77 @@ Deno.serve(async (req) => {
       return json({ error: "Missing Authorization header" }, 401);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    // Client Utente (per identità) e Admin (per bypassare RLS durante l'automazione)
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
     const admin = createClient(supabaseUrl, supabaseServiceKey);
 
+    // 1. Identità Utente
+    const userClient = createClient(
+      supabaseUrl,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      {
+        global: { headers: { Authorization: authHeader } },
+      },
+    );
     const {
       data: { user },
       error: userErr,
     } = await userClient.auth.getUser();
     if (userErr || !user) return json({ error: "Unauthorized" }, 401);
 
-    const body: ScanRequest = await req.json();
-    const { barcode, dispensa_id, action = "add", quantity = 1 } = body;
-
+    const {
+      barcode,
+      dispensa_id,
+      action = "add",
+      quantity = 1,
+    }: ScanRequest = await req.json();
     const trimmed = (barcode ?? "").toString().trim();
+
     if (!trimmed || !validateBarcode(trimmed))
-      return json({ error: "Codice a barre non valido" }, 400);
-    if (!validateQuantity(quantity))
-      return json({ error: "Quantità non valida" }, 400);
+      return json({ error: "Barcode non valido" }, 400);
 
-    // 1. Verifica dispensa e permessi
-    const { data: dispensa, error: dErr } = await admin
-      .from("dispense")
-      .select("id, name, group_id, user_id")
-      .eq("id", dispensa_id)
-      .maybeSingle();
+    // 2. QUERY PARALLELE (Dispensa + Prodotto + Quantità Attuale)
+    // Eseguiamo tutto in un colpo solo per abbattere la latenza di rete
+    const [dispensaRes, productRes] = await Promise.all([
+      admin
+        .from("dispense")
+        .select("id, name, group_id, user_id")
+        .eq("id", dispensa_id)
+        .maybeSingle(),
+      admin
+        .from("products")
+        .select("id, name")
+        .eq("barcode", trimmed)
+        .maybeSingle(),
+    ]);
 
-    if (dErr || !dispensa) return json({ error: "Dispensa non trovata" }, 404);
+    if (dispensaRes.error || !dispensaRes.data)
+      return json({ error: "Dispensa non trovata" }, 404);
+    const dispensa = dispensaRes.data;
 
-    let allowed = dispensa.user_id === user.id;
-    if (!allowed && dispensa.group_id) {
+    // 3. Verifica Permessi (Ottimizzata)
+    if (dispensa.user_id !== user.id && dispensa.group_id) {
       const { data: membership } = await admin
         .from("group_members")
         .select("role, accepted_at")
         .eq("group_id", dispensa.group_id)
         .eq("user_id", user.id)
         .maybeSingle();
-      allowed = !!(
+
+      const isAllowed = !!(
         membership?.accepted_at && ["editor", "admin"].includes(membership.role)
       );
+      if (!isAllowed) return json({ error: "Permesso negato" }, 403);
     }
-
-    if (!allowed) return json({ error: "Permesso negato" }, 403);
-
-    // 2. Trova o crea prodotto
-    let productQuery = admin
-      .from("products")
-      .select("id, name")
-      .eq("barcode", trimmed);
-    if (dispensa.group_id) {
-      productQuery = productQuery.or(
-        `user_id.eq.${dispensa.user_id},group_id.eq.${dispensa.group_id}`,
-      );
-    } else {
-      productQuery = productQuery.eq("user_id", dispensa.user_id);
-    }
-
-    const { data: existing } = await productQuery.maybeSingle();
 
     let productId: string;
     let productName: string;
 
-    if (existing) {
-      productId = existing.id;
-      productName = existing.name;
+    // 4. Trova o Crea Prodotto
+    if (productRes.data) {
+      productId = productRes.data.id;
+      productName = productRes.data.name;
     } else {
+      // Solo se il prodotto è nuovo chiamiamo OpenFoodFacts
       const off = isNumericBarcode(trimmed)
         ? await fetchOpenFoodFactsData(trimmed)
         : null;
@@ -190,17 +185,19 @@ Deno.serve(async (req) => {
       productId = created.id;
       productName = created.name;
 
-      // Inserimento categorie nella tabella correlata
-      if (off?.categories_for_rel && off.categories_for_rel.length > 0) {
-        const categoryRows = off.categories_for_rel.map((cat) => ({
+      // Inserimento categorie asincrono (non blocca la risposta principale)
+      if (off?.categories_for_rel?.length) {
+        const rows = off.categories_for_rel.map((cat) => ({
           product_id: productId,
           name: cat,
         }));
-        await admin.from("product_categories").insert(categoryRows);
+        admin.from("product_categories").insert(rows).then();
       }
     }
 
-    // 3. Aggiorna quantità in dispensa
+    // 5. Aggiorna Quantità
+    // Recuperiamo la quantità attuale (poteva essere fatto nel Promise.all iniziale,
+    // ma serve l'ID prodotto che potrebbe essere appena stato creato)
     const { data: curRow } = await admin
       .from("dispense_products")
       .select("quantity")
@@ -226,17 +223,19 @@ Deno.serve(async (req) => {
 
     if (upsertErr) throw upsertErr;
 
-    // 4. Notifica asincrona
+    // 6. Notifica (FIRE-AND-FORGET)
+    // Non usiamo 'await' qui: la risposta al client parte subito
     admin
       .from("notifications")
       .insert({
         user_id: user.id,
-        title: action === "add" ? "Prodotto aggiunto" : "Prodotto rimosso",
-        message: `${quantity}x ${productName} ${action === "add" ? "nella dispensa" : "dalla dispensa"} ${dispensa.name}`,
+        title: action === "add" ? "Aggiunto" : "Rimosso",
+        message: `${quantity}x ${productName}`,
         type: "scanner",
       })
       .then();
 
+    // Ritorno immediato dei dati essenziali alla UI
     return json({
       success: true,
       productId,

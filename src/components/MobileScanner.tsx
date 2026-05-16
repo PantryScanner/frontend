@@ -100,6 +100,7 @@ export function MobileScanner({
   useEffect(() => {
     if (!open || defaultDispensaId || !user) return;
     (async () => {
+      console.log("[Scanner] Caricamento elenco dispense...");
       let q = supabase.from("dispense").select("id, name, color, group_id");
       if (activeGroup) {
         q = q.or(
@@ -108,14 +109,22 @@ export function MobileScanner({
       } else {
         q = q.eq("user_id", user.id);
       }
-      const { data } = await q.order("name");
+      const { data, error } = await q.order("name");
+
+      if (error) {
+        console.error("[Scanner] Errore caricamento dispense:", error);
+        return;
+      }
+
       const list = data ?? [];
       setDispense(list);
 
       if (!selectedDispensaId && list.length > 0) {
         const saved = localStorage.getItem("mobileScanner.dispensaId");
         const found = saved && list.find((d) => d.id === saved);
-        setSelectedDispensaId(found ? saved : list[0].id);
+        const finalId = found ? (saved as string) : list[0].id;
+        setSelectedDispensaId(finalId);
+        console.log("[Scanner] Dispensa selezionata:", finalId);
       }
     })();
   }, [open, defaultDispensaId, user, activeGroup]);
@@ -139,11 +148,18 @@ export function MobileScanner({
     async (barcode: string) => {
       const dispensaId = selectedDispensaIdRef.current;
       if (!dispensaId) {
+        console.warn(
+          "[Scanner] Scansione annullata: nessuna dispensa selezionata.",
+        );
         appToast.warning("Seleziona prima una dispensa");
         return;
       }
 
       busyRef.current = true;
+      // Inizio cronometro
+      const startTime = performance.now();
+      console.log(`[Scanner] 🚀 Avvio elaborazione: ${barcode}`);
+
       try {
         const { data, error } = await supabase.functions.invoke(
           "mobile-scan-product",
@@ -159,6 +175,12 @@ export function MobileScanner({
 
         if (error || data?.error)
           throw new Error(error?.message || data?.error);
+
+        // Calcolo tempo trascorso
+        const duration = (performance.now() - startTime).toFixed(0);
+        console.log(
+          `[Scanner] ✅ Completato in ${duration}ms. Prodotto: ${data?.productName}`,
+        );
 
         playSound("success");
         setScanCount((c) => c + 1);
@@ -179,6 +201,9 @@ export function MobileScanner({
 
         onScanComplete?.();
       } catch (e: any) {
+        const duration = (performance.now() - startTime).toFixed(0);
+        console.error(`[Scanner] ❌ Errore dopo ${duration}ms:`, e.message);
+
         playSound("error");
         appToast.error("Errore", {
           description: e.message || "Prodotto non trovato",
@@ -194,14 +219,23 @@ export function MobileScanner({
     (barcode: string) => {
       if (!scanningActiveRef.current) return;
       const code = barcode.trim();
-      if (!code || busyRef.current) return;
+      if (!code) return;
+
+      if (busyRef.current) {
+        console.log("[Scanner] Coda occupata, ignoro rilevamento:", code);
+        return;
+      }
 
       const now = Date.now();
       if (
         lastScanRef.current.code === code &&
         now - lastScanRef.current.ts < SCAN_COOLDOWN_MS
-      )
+      ) {
+        console.log("[Scanner] Codice ignorato (cooldown):", code);
         return;
+      }
+
+      console.log("[Scanner] Codice rilevato:", code);
       lastScanRef.current = { code, ts: now };
 
       if (navigator.vibrate) navigator.vibrate(40);
@@ -210,9 +244,10 @@ export function MobileScanner({
     [submitScan],
   );
 
-  // Keep camera always streaming while open; gate scanning via ref
   useEffect(() => {
     if (!open) return;
+    console.log("[Scanner] Inizializzazione fotocamera...");
+
     let isMounted = true;
     const hints = new Map();
     hints.set(DecodeHintType.POSSIBLE_FORMATS, [
@@ -245,13 +280,16 @@ export function MobileScanner({
         }
         controlsRef.current = controls;
         setCameraReady(true);
+        console.log("[Scanner] Stream video attivo.");
       } catch (err) {
+        console.error("[Scanner] Errore inizializzazione stream:", err);
         if (isMounted) setCameraError("Impossibile accedere alla fotocamera.");
       }
     };
 
     startCamera();
     return () => {
+      console.log("[Scanner] Chiusura scanner e rilascio risorse.");
       isMounted = false;
       scanningActiveRef.current = false;
       if (controlsRef.current) controlsRef.current.stop();
@@ -266,12 +304,16 @@ export function MobileScanner({
       appToast.warning("Seleziona prima una dispensa");
       return;
     }
+    console.log("[Scanner] Scansione attivata (pulsante premuto)");
     scanningActiveRef.current = true;
     setIsHolding(true);
     if (navigator.vibrate) navigator.vibrate(20);
   };
 
   const stopScanning = () => {
+    if (scanningActiveRef.current) {
+      console.log("[Scanner] Scansione disattivata (pulsante rilasciato)");
+    }
     scanningActiveRef.current = false;
     setIsHolding(false);
   };
@@ -346,10 +388,30 @@ export function MobileScanner({
               {isHolding && (
                 <div className="absolute inset-x-0 h-0.5 bg-primary shadow-[0_0_15px_rgba(var(--primary),0.8)] top-1/2 -translate-y-1/2 animate-[bounce_1.2s_infinite]" />
               )}
-              <div className={cn("absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 rounded-tl-lg transition-colors", isHolding ? "border-primary" : "border-white/70")} />
-              <div className={cn("absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 rounded-tr-lg transition-colors", isHolding ? "border-primary" : "border-white/70")} />
-              <div className={cn("absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 rounded-bl-lg transition-colors", isHolding ? "border-primary" : "border-white/70")} />
-              <div className={cn("absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 rounded-br-lg transition-colors", isHolding ? "border-primary" : "border-white/70")} />
+              <div
+                className={cn(
+                  "absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 rounded-tl-lg transition-colors",
+                  isHolding ? "border-primary" : "border-white/70",
+                )}
+              />
+              <div
+                className={cn(
+                  "absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 rounded-tr-lg transition-colors",
+                  isHolding ? "border-primary" : "border-white/70",
+                )}
+              />
+              <div
+                className={cn(
+                  "absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 rounded-bl-lg transition-colors",
+                  isHolding ? "border-primary" : "border-white/70",
+                )}
+              />
+              <div
+                className={cn(
+                  "absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 rounded-br-lg transition-colors",
+                  isHolding ? "border-primary" : "border-white/70",
+                )}
+              />
             </div>
           </div>
 
@@ -364,7 +426,10 @@ export function MobileScanner({
             <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-black/90 p-6 text-center gap-4 z-20">
               <AlertCircle className="h-10 w-10 text-destructive" />
               <p className="text-sm">{cameraError}</p>
-              <Button variant="outline" onClick={() => window.location.reload()}>
+              <Button
+                variant="outline"
+                onClick={() => window.location.reload()}
+              >
                 Riprova
               </Button>
             </div>
@@ -375,7 +440,11 @@ export function MobileScanner({
               <div className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md shadow-2xl border-2 border-green-500/50 p-3 rounded-2xl flex items-center gap-3">
                 <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center overflow-hidden border shadow-sm shrink-0">
                   {flash.productImage ? (
-                    <img src={flash.productImage} className="object-cover h-full w-full" alt="prodotto" />
+                    <img
+                      src={flash.productImage}
+                      className="object-cover h-full w-full"
+                      alt="prodotto"
+                    />
                   ) : (
                     <Package className="h-6 w-6 text-muted-foreground" />
                   )}
@@ -387,9 +456,14 @@ export function MobileScanner({
                       Aggiunto
                     </span>
                   </div>
-                  <p className="text-sm font-bold truncate leading-tight">{flash.productName}</p>
+                  <p className="text-sm font-bold truncate leading-tight">
+                    {flash.productName}
+                  </p>
                   <p className="text-xs text-muted-foreground">
-                    Totale: <span className="font-semibold text-foreground">{flash.newQuantity}</span>
+                    Totale:{" "}
+                    <span className="font-semibold text-foreground">
+                      {flash.newQuantity}
+                    </span>
                   </p>
                 </div>
                 <div className="bg-green-500 text-white h-9 w-9 rounded-full flex items-center justify-center font-bold shadow-lg text-sm">
@@ -400,7 +474,6 @@ export function MobileScanner({
           )}
         </div>
 
-        {/* Hold-to-scan trigger */}
         <div className="bg-background border-t px-4 pt-4 pb-5 shrink-0 flex flex-col items-center gap-3">
           <button
             type="button"
@@ -430,7 +503,9 @@ export function MobileScanner({
             <ScanLine className="h-8 w-8 relative z-10" />
           </button>
           <p className="text-xs text-muted-foreground font-medium">
-            {isHolding ? "Scansione attiva..." : "Tieni premuto per scansionare"}
+            {isHolding
+              ? "Scansione attiva..."
+              : "Tieni premuto per scansionare"}
           </p>
 
           <div className="w-full flex items-center justify-between pt-1">
