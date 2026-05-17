@@ -75,6 +75,7 @@ const About = () => {
             <Link to="/about" className="text-sm font-medium text-primary">Chi siamo</Link>
             <Link to="/scanners" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Scanner</Link>
             <Link to="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Prezzi</Link>
+            <Link to="/blog" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Blog</Link>
           </div>
           <div className="flex items-center gap-3">
             <Link to="/auth">
@@ -259,6 +260,7 @@ const About = () => {
               <Link to="/about" className="hover:text-foreground transition-colors">Chi siamo</Link>
               <Link to="/scanners" className="hover:text-foreground transition-colors">Scanner</Link>
               <Link to="/pricing" className="hover:text-foreground transition-colors">Prezzi</Link>
+              <Link to="/blog" className="hover:text-foreground transition-colors">Blog</Link>
             </div>
             <p className="text-sm text-muted-foreground">
               © {new Date().getFullYear()} PantryOS. Tutti i diritti riservati.
