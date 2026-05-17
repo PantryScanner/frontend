@@ -11,6 +11,7 @@ import { BlogLayout } from "@/components/blog/BlogLayout";
 import { TableOfContents } from "@/components/blog/TableOfContents";
 import { CodeBlock } from "@/components/blog/CodeBlock";
 import { PostCard } from "@/components/blog/PostCard";
+import { PantryCTA } from "@/components/blog/PantryCTA";
 import { getPostBySlug, getRelatedPosts, categoryLabel, formatDate } from "@/lib/blog";
 import { appToast } from "@/lib/toast";
 
@@ -186,26 +187,18 @@ export default function BlogPost() {
                 </button>
               </div>
 
-              <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/15 to-primary/5 p-8 text-center">
-                <h3 className="font-serif text-2xl font-semibold mb-3">
-                  Metti in pratica quello che hai appena letto.
-                </h3>
-                <p className="text-muted-foreground mb-5 max-w-md mx-auto">
-                  PantryOS ti aiuta a organizzare la dispensa, tracciare le scadenze e ridurre gli sprechi — in pochi minuti.
-                </p>
-                <Link
-                  to="/auth"
-                  className="inline-flex items-center gap-1 bg-primary text-primary-foreground hover:bg-primary-hover px-5 py-2.5 rounded-md font-medium transition-colors"
-                >
-                  Prova PantryOS gratis <ArrowRight className="h-4 w-4" />
-                </Link>
-              </div>
+              <PantryCTA
+                variant="article-end"
+                title="Metti in pratica quello che hai appena letto."
+                description="PantryOS ti aiuta a organizzare la dispensa, tracciare le scadenze e ridurre gli sprechi alimentari — in pochi minuti, gratis."
+              />
             </div>
           </div>
 
           <aside className="hidden lg:block">
-            <div className="sticky top-24">
+            <div className="sticky top-24 space-y-6">
               <TableOfContents markdown={post.content} />
+              <PantryCTA variant="sidebar" />
             </div>
           </aside>
         </div>
