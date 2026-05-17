@@ -2,7 +2,7 @@
 // via Vite's import.meta.glob, parsed with a lightweight frontmatter
 // parser (no Node Buffer deps), and exposed as typed helpers.
 
-import readingTime from "reading-time";
+import readingTime from "reading-time/lib/reading-time.js";
 
 export interface BlogPost {
   slug: string;
@@ -27,7 +27,10 @@ const modules = import.meta.glob("/src/content/blog/**/*.md", {
   import: "default",
 }) as Record<string, string>;
 
-function parseFrontmatter(raw: string): { data: Record<string, any>; content: string } {
+function parseFrontmatter(raw: string): {
+  data: Record<string, any>;
+  content: string;
+} {
   const match = raw.match(/^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/);
   if (!match) return { data: {}, content: raw };
   const [, fm, content] = match;
@@ -38,7 +41,10 @@ function parseFrontmatter(raw: string): { data: Record<string, any>; content: st
   while (i < lines.length) {
     const line = lines[i];
     const kv = line.match(/^([A-Za-z0-9_]+)\s*:\s*(.*)$/);
-    if (!kv) { i++; continue; }
+    if (!kv) {
+      i++;
+      continue;
+    }
     const key = kv[1];
     let value: any = kv[2].trim();
     if (value === "") {
@@ -46,7 +52,12 @@ function parseFrontmatter(raw: string): { data: Record<string, any>; content: st
       const arr: string[] = [];
       let j = i + 1;
       while (j < lines.length && /^\s*-\s+/.test(lines[j])) {
-        arr.push(lines[j].replace(/^\s*-\s+/, "").replace(/^["']|["']$/g, "").trim());
+        arr.push(
+          lines[j]
+            .replace(/^\s*-\s+/, "")
+            .replace(/^["']|["']$/g, "")
+            .trim(),
+        );
         j++;
       }
       data[key] = arr;
@@ -100,10 +111,14 @@ const ALL_POSTS: BlogPost[] = Object.entries(modules)
   })
   .sort((a, b) => (a.date < b.date ? 1 : -1));
 
-export const CATEGORY_META: Record<string, { label: string; description: string }> = {
+export const CATEGORY_META: Record<
+  string,
+  { label: string; description: string }
+> = {
   "pantry-management": {
     label: "Gestione Dispensa",
-    description: "Guide pratiche per organizzare e ottimizzare la tua dispensa.",
+    description:
+      "Guide pratiche per organizzare e ottimizzare la tua dispensa.",
   },
   "food-waste": {
     label: "Spreco Alimentare",
@@ -131,7 +146,10 @@ export function getFeaturedPost(): BlogPost | undefined {
   return ALL_POSTS.find((p) => p.featured) ?? ALL_POSTS[0];
 }
 
-export function getPostBySlug(category: string, slug: string): BlogPost | undefined {
+export function getPostBySlug(
+  category: string,
+  slug: string,
+): BlogPost | undefined {
   return ALL_POSTS.find((p) => p.category === category && p.slug === slug);
 }
 
@@ -140,12 +158,20 @@ export function getPostsByCategory(category: string): BlogPost[] {
 }
 
 export function getPostsByTag(tag: string): BlogPost[] {
-  return ALL_POSTS.filter((p) => p.tags.map((t) => t.toLowerCase()).includes(tag.toLowerCase()));
+  return ALL_POSTS.filter((p) =>
+    p.tags.map((t) => t.toLowerCase()).includes(tag.toLowerCase()),
+  );
 }
 
-export function getAllCategories(): { slug: string; label: string; count: number }[] {
+export function getAllCategories(): {
+  slug: string;
+  label: string;
+  count: number;
+}[] {
   const counts = new Map<string, number>();
-  ALL_POSTS.forEach((p) => counts.set(p.category, (counts.get(p.category) || 0) + 1));
+  ALL_POSTS.forEach((p) =>
+    counts.set(p.category, (counts.get(p.category) || 0) + 1),
+  );
   return Array.from(counts.entries()).map(([slug, count]) => ({
     slug,
     label: categoryLabel(slug),
