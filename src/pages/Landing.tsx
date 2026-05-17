@@ -129,6 +129,10 @@ const Landing = () => {
               Prezzi
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
             </Link>
+            <Link to="/blog" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative group">
+              Blog
+              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
+            </Link>
           </div>
           <div className="flex items-center gap-1 sm:gap-3 shrink-0">
             {user ? <>
