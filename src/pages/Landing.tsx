@@ -74,29 +74,30 @@ const Landing = () => {
           </Link>
           <div className="hidden md:flex items-center gap-8">
             <Link to="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative group">
-              Chi siamo
+              {t('nav.about')}
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
             </Link>
             <Link to="/scanners" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative group">
-              Scanner
+              {t('nav.scanners')}
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
             </Link>
             <Link to="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative group">
-              Prezzi
+              {t('nav.pricing')}
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
             </Link>
             <Link to="/blog" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative group">
-              Blog
+              {t('nav.blog')}
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
             </Link>
           </div>
           <div className="flex items-center gap-1 sm:gap-3 shrink-0">
+            <LanguageSwitcher />
             {user ? <>
-                <Link to="/profilo"><Button variant="ghost" size="sm" className="px-2 sm:px-3"><User className="h-4 w-4 sm:mr-1"/><span className="hidden sm:inline">My account</span></Button></Link>
-                <Link to="/dashboard"><Button size="sm" className="shadow-glow px-2 sm:px-3"><LayoutDashboard className="h-4 w-4 sm:mr-1"/><span className="hidden sm:inline">My Dashboard</span></Button></Link>
+                <Link to="/profilo"><Button variant="ghost" size="sm" className="px-2 sm:px-3"><User className="h-4 w-4 sm:mr-1"/><span className="hidden sm:inline">{t('nav.myAccount')}</span></Button></Link>
+                <Link to="/dashboard"><Button size="sm" className="shadow-glow px-2 sm:px-3"><LayoutDashboard className="h-4 w-4 sm:mr-1"/><span className="hidden sm:inline">{t('nav.myDashboard')}</span></Button></Link>
               </> : <>
-                <Link to="/auth"><Button variant="ghost" size="sm">Registrati</Button></Link>
-                <Link to="/auth"><Button size="sm" className="shadow-glow">Accedi</Button></Link>
+                <Link to="/auth"><Button variant="ghost" size="sm">{t('nav.signUp')}</Button></Link>
+                <Link to="/auth"><Button size="sm" className="shadow-glow">{t('nav.signIn')}</Button></Link>
               </>}
           </div>
         </div>
