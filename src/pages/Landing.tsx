@@ -3,10 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Package, Warehouse, BarChart3, Bell, ShoppingCart, Smartphone, ArrowRight, Check, Zap, Shield, RefreshCw, Cpu, ChevronRight, Play, Users, Star, Scan, Globe, Lock, Sparkles, ChevronDown, Wifi, User, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState, useRef, useMemo } from 'react';
+import { useT } from '@/lib/i18n';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 const Landing = () => {
-  const {
-    user
-  } = useAuth();
+  const { user } = useAuth();
+  const { t } = useT();
   const [scrollY, setScrollY] = useState(0);
   const [mousePosition, setMousePosition] = useState({
     x: 0,
@@ -31,71 +32,26 @@ const Landing = () => {
       window.removeEventListener('mousemove', handleMouseMove);
     };
   }, []);
-  const features = [{
-    icon: Warehouse,
-    title: "Gestione Dispense",
-    description: "Organizza i tuoi prodotti in più location con sincronizzazione real-time",
-    color: "from-primary/20 to-primary/5"
-  }, {
-    icon: Bell,
-    title: "Notifiche Intelligenti",
-    description: "Ricevi avvisi quando i prodotti scendono sotto la soglia impostata",
-    color: "from-warning/20 to-warning/5"
-  }, {
-    icon: BarChart3,
-    title: "Analytics Avanzate",
-    description: "Monitora consumi e trend con grafici interattivi e report dettagliati",
-    color: "from-success/20 to-success/5"
-  }, {
-    icon: ShoppingCart,
-    title: "Lista della Spesa",
-    description: "Genera automaticamente la lista della spesa basata sulle scorte",
-    color: "from-primary/20 to-primary/5"
-  }, {
-    icon: Smartphone,
-    title: "App Mobile",
-    description: "Accedi alle tue dispense ovunque con la nostra Progressive Web App",
-    color: "from-destructive/20 to-destructive/5"
-  }, {
-    icon: RefreshCw,
-    title: "Sync Automatico",
-    description: "I dispositivi IoT aggiornano l'inventario in tempo reale",
-    color: "from-success/20 to-success/5"
-  }];
-  const benefits = ["Zero sprechi alimentari", "Risparmio di tempo", "Gestione centralizzata", "Report automatici"];
-  const stats = [{
-    value: "10K+",
-    label: "Utenti Attivi",
-    suffix: ""
-  }, {
-    value: "500K+",
-    label: "Prodotti Tracciati",
-    suffix: ""
-  }, {
-    value: "30%",
-    label: "Risparmio Medio",
-    suffix: ""
-  }, {
-    value: "99.9%",
-    label: "Uptime",
-    suffix: ""
-  }];
-  const testimonials = [{
-    name: "Marco R.",
-    role: "Ristoratore",
-    text: "PantryOS ha rivoluzionato la gestione del mio magazzino. Risparmio ore ogni settimana!",
-    avatar: "M"
-  }, {
-    name: "Laura B.",
-    role: "Famiglia",
-    text: "Finalmente non butto più cibo scaduto. Le notifiche sono perfette!",
-    avatar: "L"
-  }, {
-    name: "Giovanni T.",
-    role: "Hotel Manager",
-    text: "Gestire 50 dispense non è mai stato così semplice. Consiglio vivamente.",
-    avatar: "G"
-  }];
+  const features = [
+    { icon: Warehouse, title: t('landing.features.pantriesTitle'), description: t('landing.features.pantriesDesc'), color: 'from-primary/20 to-primary/5' },
+    { icon: Bell, title: t('landing.features.notifTitle'), description: t('landing.features.notifDesc'), color: 'from-warning/20 to-warning/5' },
+    { icon: BarChart3, title: t('landing.features.analyticsTitle'), description: t('landing.features.analyticsDesc'), color: 'from-success/20 to-success/5' },
+    { icon: ShoppingCart, title: t('landing.features.listTitle'), description: t('landing.features.listDesc'), color: 'from-primary/20 to-primary/5' },
+    { icon: Smartphone, title: t('landing.features.mobileTitle'), description: t('landing.features.mobileDesc'), color: 'from-destructive/20 to-destructive/5' },
+    { icon: RefreshCw, title: t('landing.features.syncTitle'), description: t('landing.features.syncDesc'), color: 'from-success/20 to-success/5' },
+  ];
+  const benefits = [t('landing.benefits.zeroWaste'), t('landing.benefits.timeSaving'), t('landing.benefits.centralized'), t('landing.benefits.autoReports')];
+  const stats = [
+    { value: '10K+', label: t('landing.stats.users') },
+    { value: '500K+', label: t('landing.stats.products') },
+    { value: '30%', label: t('landing.stats.savings') },
+    { value: '99.9%', label: t('landing.stats.uptime') },
+  ];
+  const testimonials = [
+    { name: 'Marco R.', role: t('landing.testimonials.marco.role'), text: t('landing.testimonials.marco.text'), avatar: 'M' },
+    { name: 'Laura B.', role: t('landing.testimonials.laura.role'), text: t('landing.testimonials.laura.text'), avatar: 'L' },
+    { name: 'Giovanni T.', role: t('landing.testimonials.giovanni.role'), text: t('landing.testimonials.giovanni.text'), avatar: 'G' },
+  ];
   const year = new Date().getFullYear();
   const particles = useMemo(() => {
     return [...Array(20)].map((_, i) => ({
@@ -118,29 +74,30 @@ const Landing = () => {
           </Link>
           <div className="hidden md:flex items-center gap-8">
             <Link to="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative group">
-              Chi siamo
+              {t('nav.about')}
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
             </Link>
             <Link to="/scanners" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative group">
-              Scanner
+              {t('nav.scanners')}
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
             </Link>
             <Link to="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative group">
-              Prezzi
+              {t('nav.pricing')}
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
             </Link>
             <Link to="/blog" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative group">
-              Blog
+              {t('nav.blog')}
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
             </Link>
           </div>
           <div className="flex items-center gap-1 sm:gap-3 shrink-0">
+            <LanguageSwitcher />
             {user ? <>
-                <Link to="/profilo"><Button variant="ghost" size="sm" className="px-2 sm:px-3"><User className="h-4 w-4 sm:mr-1"/><span className="hidden sm:inline">My account</span></Button></Link>
-                <Link to="/dashboard"><Button size="sm" className="shadow-glow px-2 sm:px-3"><LayoutDashboard className="h-4 w-4 sm:mr-1"/><span className="hidden sm:inline">My Dashboard</span></Button></Link>
+                <Link to="/profilo"><Button variant="ghost" size="sm" className="px-2 sm:px-3"><User className="h-4 w-4 sm:mr-1"/><span className="hidden sm:inline">{t('nav.myAccount')}</span></Button></Link>
+                <Link to="/dashboard"><Button size="sm" className="shadow-glow px-2 sm:px-3"><LayoutDashboard className="h-4 w-4 sm:mr-1"/><span className="hidden sm:inline">{t('nav.myDashboard')}</span></Button></Link>
               </> : <>
-                <Link to="/auth"><Button variant="ghost" size="sm">Registrati</Button></Link>
-                <Link to="/auth"><Button size="sm" className="shadow-glow">Accedi</Button></Link>
+                <Link to="/auth"><Button variant="ghost" size="sm">{t('nav.signUp')}</Button></Link>
+                <Link to="/auth"><Button size="sm" className="shadow-glow">{t('nav.signIn')}</Button></Link>
               </>}
           </div>
         </div>
@@ -180,24 +137,23 @@ const Landing = () => {
             <div className="space-y-8">
               <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 text-sm font-medium text-primary animate-fade-in backdrop-blur-sm">
                 <Sparkles className="h-4 w-4 animate-pulse" />
-                <span>Gestione Inventario Intelligente</span>
-                <span className="bg-primary/20 px-2 py-0.5 rounded-full text-xs">Nuovo</span>
+                <span>{t('landing.heroBadge')}</span>
+                <span className="bg-primary/20 px-2 py-0.5 rounded-full text-xs">{t('common.new')}</span>
               </div>
               
               <h1 className="text-5xl lg:text-7xl font-bold leading-[1.1] animate-fade-in" style={{
               animationDelay: '0.1s'
             }}>
-                Il tuo inventario,
+                {t('landing.heroTitle1')}
                 <span className="block mt-2 bg-gradient-to-r from-primary via-primary to-success bg-clip-text text-transparent">
-                  sotto controllo.
+                  {t('landing.heroTitle2')}
                 </span>
               </h1>
               
               <p className="text-xl text-muted-foreground max-w-xl animate-fade-in leading-relaxed" style={{
               animationDelay: '0.2s'
             }}>
-                Monitora le scorte della tua casa o attività con dispositivi IoT intelligenti. 
-                Ricevi notifiche, genera liste della spesa e analizza i consumi in tempo reale.
+                {t('landing.heroLead')}
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4 animate-fade-in" style={{
@@ -205,14 +161,14 @@ const Landing = () => {
             }}>
                 <Link to="/auth">
                   <Button size="lg" className="w-full sm:w-auto text-lg px-8 py-6 shadow-glow hover:shadow-lg transition-all group bg-gradient-to-r from-primary to-primary/80">
-                    Inizia Gratis
+                    {t('landing.ctaStart')}
                     <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
                 <Link to="/about">
                   <Button size="lg" variant="outline" className="w-full sm:w-auto text-lg px-8 py-6 backdrop-blur-sm">
                     <Play className="mr-2 h-5 w-5" />
-                    Guarda Demo
+                    {t('landing.ctaWatchDemo')}
                   </Button>
                 </Link>
               </div>
@@ -245,7 +201,7 @@ const Landing = () => {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">145</p>
-                      <p className="text-xs text-muted-foreground">Prodotti</p>
+                      <p className="text-xs text-muted-foreground">{t('landing.preview.productsLabel')}</p>
                     </div>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -262,14 +218,14 @@ const Landing = () => {
                       <Shield className="h-5 w-5 text-success" />
                     </div>
                     <div>
-                      <span className="text-sm font-medium">Sync OK</span>
+                      <span className="text-sm font-medium">{t('landing.preview.syncOk')}</span>
                       <div className="flex items-center gap-1">
                         <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
-                        <span className="text-xs text-muted-foreground">Live</span>
+                        <span className="text-xs text-muted-foreground">{t('landing.preview.live')}</span>
                       </div>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">4 dispositivi online</p>
+                  <p className="text-xs text-muted-foreground">{t('landing.preview.devicesOnline')}</p>
                 </div>
 
                 <div className="absolute -bottom-4 left-1/4 w-56 h-28 bg-card/80 backdrop-blur-xl border rounded-2xl shadow-2xl p-4 z-20" style={{
@@ -279,9 +235,9 @@ const Landing = () => {
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-medium flex items-center gap-2">
                       <Bell className="h-4 w-4 text-warning" />
-                      Alert
+                      {t('landing.preview.alert')}
                     </span>
-                    <span className="text-xs text-warning font-medium bg-warning/10 px-2 py-1 rounded-full">3 sotto soglia</span>
+                    <span className="text-xs text-warning font-medium bg-warning/10 px-2 py-1 rounded-full">{t('landing.preview.belowThreshold')}</span>
                   </div>
                   <div className="flex gap-2">
                     <div className="h-10 w-10 rounded-lg bg-warning/20 flex items-center justify-center">
@@ -340,9 +296,9 @@ const Landing = () => {
       {/* Trusted by section */}
       <section className="py-12 border-y bg-muted/30 overflow-hidden">
         <div className="container mx-auto px-6">
-          <p className="text-center text-sm text-muted-foreground mb-6">Scelto da aziende e famiglie in tutta Italia</p>
+          <p className="text-center text-sm text-muted-foreground mb-6">{t('landing.trustedBy')}</p>
           <div className="flex items-center justify-center gap-12 flex-wrap opacity-50">
-            {['Ristoranti', 'Hotel', 'Supermercati', 'Famiglie', 'Magazzini'].map((item, idx) => <div key={idx} className="text-xl font-bold text-muted-foreground">{item}</div>)}
+            {[t('landing.audiences.restaurants'), t('landing.audiences.hotels'), t('landing.audiences.supermarkets'), t('landing.audiences.families'), t('landing.audiences.warehouses')].map((item, idx) => <div key={idx} className="text-xl font-bold text-muted-foreground">{item}</div>)}
           </div>
         </div>
       </section>
@@ -370,11 +326,11 @@ const Landing = () => {
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 text-sm font-medium text-primary mb-6">
               <Zap className="h-4 w-4" />
-              Funzionalità
+              {t('landing.featuresBadge')}
             </div>
-            <h2 className="text-4xl lg:text-5xl font-bold mb-4">Tutto ciò che ti serve</h2>
+            <h2 className="text-4xl lg:text-5xl font-bold mb-4">{t('landing.featuresTitle')}</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Una suite completa di strumenti per gestire le tue scorte in modo intelligente
+              {t('landing.featuresLead')}
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -404,26 +360,26 @@ const Landing = () => {
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 text-sm font-medium text-primary mb-6">
               <Play className="h-4 w-4" />
-              Come funziona
+              {t('landing.howBadge')}
             </div>
-            <h2 className="text-4xl lg:text-5xl font-bold mb-4">Tre semplici passaggi</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">Inizia in meno di 5 minuti</p>
+            <h2 className="text-4xl lg:text-5xl font-bold mb-4">{t('landing.howTitle')}</h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">{t('landing.howLead')}</p>
           </div>
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {[{
             step: 1,
-            title: "Crea le dispense",
-            desc: "Organizza i tuoi spazi di stoccaggio virtuali",
+            title: t('landing.steps.oneTitle'),
+            desc: t('landing.steps.oneDesc'),
             icon: Warehouse
           }, {
             step: 2,
-            title: "Collega lo scanner",
-            desc: "Configura i dispositivi IoT in 30 secondi",
+            title: t('landing.steps.twoTitle'),
+            desc: t('landing.steps.twoDesc'),
             icon: Scan
           }, {
             step: 3,
-            title: "Scansiona e monitora",
-            desc: "Traccia automaticamente le scorte in tempo reale",
+            title: t('landing.steps.threeTitle'),
+            desc: t('landing.steps.threeDesc'),
             icon: BarChart3
           }].map((item, index) => <div key={index} className="text-center animate-fade-in relative" style={{
             animationDelay: `${index * 0.2}s`
@@ -450,9 +406,9 @@ const Landing = () => {
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 text-sm font-medium text-primary mb-6">
               <Users className="h-4 w-4" />
-              Testimonianze
+              {t('landing.testimonialsBadge')}
             </div>
-            <h2 className="text-4xl lg:text-5xl font-bold mb-4">Cosa dicono i nostri utenti</h2>
+            <h2 className="text-4xl lg:text-5xl font-bold mb-4">{t('landing.testimonialsTitle')}</h2>
           </div>
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {testimonials.map((testimonial, index) => <div key={index} className="bg-card border rounded-2xl p-8 hover:shadow-glow transition-all animate-fade-in" style={{
@@ -490,30 +446,29 @@ const Landing = () => {
             }}>
                 <div className="flex items-center gap-2">
                   <div className="h-3 w-3 rounded-full bg-success animate-pulse" />
-                  <span className="text-sm font-medium">Online</span>
+                  <span className="text-sm font-medium">{t('common.online')}</span>
                 </div>
               </div>
             </div>
             <div className="order-1 lg:order-2">
               <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 text-sm font-medium text-primary mb-6">
                 <Cpu className="h-4 w-4" />
-                Hardware
+                {t('landing.hardwareBadge')}
               </div>
-              <h2 className="text-4xl lg:text-5xl font-bold mb-6">Scanner dedicati per la tua dispensa</h2>
+              <h2 className="text-4xl lg:text-5xl font-bold mb-6">{t('landing.hardwareTitle')}</h2>
               <p className="text-lg text-muted-foreground mb-8">
-                I nostri dispositivi IoT sono progettati per integrarsi perfettamente con PantryOS. 
-                Basta una scansione per aggiornare l'inventario.
+                {t('landing.hardwareLead')}
               </p>
               <div className="space-y-4 mb-8">
                 {[{
                 icon: Wifi,
-                text: "Connessione WiFi automatica"
+                text: t('landing.hardwareFeatures.wifi')
               }, {
                 icon: Lock,
-                text: "Batteria a lunga durata"
+                text: t('landing.hardwareFeatures.battery')
               }, {
                 icon: Zap,
-                text: "Configurazione in 30 secondi"
+                text: t('landing.hardwareFeatures.setup')
               }].map((item, idx) => <div key={idx} className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                       <item.icon className="h-5 w-5 text-primary" />
@@ -523,7 +478,7 @@ const Landing = () => {
               </div>
               <Link to="/scanners">
                 <Button size="lg" className="gap-2 shadow-glow">
-                  Scopri gli scanner
+                  {t('landing.discoverScanners')}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
@@ -543,22 +498,22 @@ const Landing = () => {
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 bg-primary/20 border border-primary/30 rounded-full px-4 py-2 text-sm font-medium text-primary mb-6">
                 <Sparkles className="h-4 w-4" />
-                Inizia oggi
+                {t('landing.ctaBadge')}
               </div>
-              <h2 className="text-4xl lg:text-5xl font-bold mb-4">Pronto a iniziare?</h2>
+              <h2 className="text-4xl lg:text-5xl font-bold mb-4">{t('landing.ctaTitle')}</h2>
               <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-                Unisciti a migliaia di utenti che hanno già ottimizzato la gestione delle loro scorte
+                {t('landing.ctaLead')}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link to="/auth">
                   <Button size="lg" className="text-lg px-10 py-6 shadow-glow group text-center">
-                    Crea il tuo account gratuito
+                    {t('landing.ctaCreateAccount')}
                     <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
                 <Link to="/pricing">
                   <Button size="lg" variant="outline" className="text-lg px-10 py-6 backdrop-blur-sm">
-                    Vedi i piani
+                    {t('landing.ctaSeePlans')}
                   </Button>
                 </Link>
               </div>
@@ -579,36 +534,36 @@ const Landing = () => {
                 <span className="font-bold text-xl">PantryOS</span>
               </Link>
               <p className="text-sm text-muted-foreground">
-                La soluzione intelligente per la gestione del tuo inventario domestico e aziendale.
+                {t('landing.footer.tagline')}
               </p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Prodotto</h4>
+              <h4 className="font-semibold mb-4">{t('landing.footer.product')}</h4>
               <div className="space-y-3 text-sm text-muted-foreground">
-                <Link to="/about" className="block hover:text-foreground transition-colors">Chi siamo</Link>
-                <Link to="/scanners" className="block hover:text-foreground transition-colors">Scanner</Link>
-                <Link to="/pricing" className="block hover:text-foreground transition-colors">Prezzi</Link>
+                <Link to="/about" className="block hover:text-foreground transition-colors">{t('nav.about')}</Link>
+                <Link to="/scanners" className="block hover:text-foreground transition-colors">{t('nav.scanners')}</Link>
+                <Link to="/pricing" className="block hover:text-foreground transition-colors">{t('nav.pricing')}</Link>
               </div>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Risorse</h4>
+              <h4 className="font-semibold mb-4">{t('landing.footer.resources')}</h4>
               <div className="space-y-3 text-sm text-muted-foreground">
-                <a href="#" className="block hover:text-foreground transition-colors">Documentazione</a>
-                <a href="#" className="block hover:text-foreground transition-colors">API</a>
-                <a href="#" className="block hover:text-foreground transition-colors">Blog</a>
+                <a href="#" className="block hover:text-foreground transition-colors">{t('landing.footer.docs')}</a>
+                <a href="#" className="block hover:text-foreground transition-colors">{t('landing.footer.api')}</a>
+                <Link to="/blog" className="block hover:text-foreground transition-colors">{t('nav.blog')}</Link>
               </div>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Legale</h4>
+              <h4 className="font-semibold mb-4">{t('landing.footer.legal')}</h4>
               <div className="space-y-3 text-sm text-muted-foreground">
-                <a href="#" className="block hover:text-foreground transition-colors">Privacy Policy</a>
-                <a href="#" className="block hover:text-foreground transition-colors">Termini di Servizio</a>
-                <a href="#" className="block hover:text-foreground transition-colors">Cookie Policy</a>
+                <a href="#" className="block hover:text-foreground transition-colors">{t('landing.footer.privacy')}</a>
+                <a href="#" className="block hover:text-foreground transition-colors">{t('landing.footer.terms')}</a>
+                <a href="#" className="block hover:text-foreground transition-colors">{t('landing.footer.cookies')}</a>
               </div>
             </div>
           </div>
           <div className="pt-8 border-t flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-muted-foreground">© {year} PantryOS. Tutti i diritti riservati.</p>
+            <p className="text-sm text-muted-foreground">© {year} PantryOS. {t('landing.footer.rights')}</p>
             <div className="flex gap-4">
               <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
                 <Globe className="h-5 w-5" />

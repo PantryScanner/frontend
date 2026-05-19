@@ -9,12 +9,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNotificationContext } from "@/contexts/NotificationContext";
 import { GroupSwitcher } from "@/components/GroupSwitcher";
 import { MobileScanner } from "@/components/MobileScanner";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 export function AppHeader() {
   const { notifications, unreadCount, markAllAsRead, deleteNotification, clearAll } = useNotificationContext();
   const [isOpen, setIsOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const { t } = useT();
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
@@ -43,13 +46,13 @@ export function AppHeader() {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return "Ora";
-    if (diffMins < 60) return `${diffMins} min fa`;
+    if (diffMins < 1) return t("header.now");
+    if (diffMins < 60) return `${diffMins} ${t("header.minAgo")}`;
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h fa`;
+    if (diffHours < 24) return `${diffHours}${t("header.hAgo")}`;
     const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 7) return `${diffDays}g fa`;
-    return date.toLocaleDateString("it-IT");
+    if (diffDays < 7) return `${diffDays}${t("header.dAgo")}`;
+    return date.toLocaleDateString();
   };
 
   return (
@@ -61,16 +64,17 @@ export function AppHeader() {
         </div>
         <div className="relative w-64 max-w-md hidden md:block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Cerca prodotti, dispense..." className="pl-10" />
+          <Input placeholder={t("header.searchPlaceholder")} className="pl-10" />
         </div>
       </div>
       
       <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+        <LanguageSwitcher />
         <Button
           variant="ghost"
           size="icon"
           className="md:hidden"
-          aria-label="Apri scanner"
+          aria-label={t("header.openScanner")}
           onClick={() => setScannerOpen(true)}
         >
           <ScanLine className="h-5 w-5" />
@@ -88,10 +92,10 @@ export function AppHeader() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-96 bg-popover p-0" sideOffset={8}>
             <div className="flex items-center justify-between px-4 py-3 border-b">
-              <h3 className="font-semibold">Notifiche</h3>
+              <h3 className="font-semibold">{t("header.notifications")}</h3>
               {notifications.length > 0 && (
                 <Button variant="ghost-destructive" size="sm" className="text-xs text-muted-foreground" onClick={(e) => { e.preventDefault(); clearAll(); }}>
-                  <Trash2 className="h-3 w-3 mr-1" />Elimina tutte
+                  <Trash2 className="h-3 w-3 mr-1" />{t("common.deleteAll")}
                 </Button>
               )}
             </div>
@@ -99,7 +103,7 @@ export function AppHeader() {
             {notifications.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground">
                 <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Nessuna notifica</p>
+                <p className="text-sm">{t("header.noNotifications")}</p>
               </div>
             ) : (
               <ScrollArea className="h-[400px]">

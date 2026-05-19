@@ -28,6 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useActiveGroup } from "@/contexts/ActiveGroupContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { appToast } from "@/lib/toast";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 const SOUND_SUCCESS =
@@ -56,7 +57,31 @@ interface SuccessFlash {
   newQuantity: number;
 }
 
-const SCAN_COOLDOWN_MS = 800;
+// === SCAN ACCURACY TUNING ===
+// Time after a successful submission during which the SAME code is ignored
+const SAME_CODE_COOLDOWN_MS = 1500;
+// Time after a successful submission during which ANY code is ignored
+const GLOBAL_COOLDOWN_MS = 350;
+// How many consecutive identical reads we need to consider it confirmed
+const CONFIRM_THRESHOLD = 2;
+// Max age between confirming reads (ms)
+const CONFIRM_WINDOW_MS = 600;
+
+/** EAN-13 / EAN-8 / UPC-A checksum validator. Returns true for non-numeric (CODE_128, etc.) — only validates GTINs. */
+function isValidGtin(code: string): boolean {
+  if (!/^\d+$/.test(code)) return true; // non-numeric → trust the symbology
+  if (![8, 12, 13, 14].includes(code.length)) return true;
+  const digits = code.split("").map(Number);
+  const check = digits.pop()!;
+  let sum = 0;
+  // GTIN: starting from rightmost digit BEFORE the check digit, alternate ×3,×1
+  const rev = digits.reverse();
+  for (let i = 0; i < rev.length; i++) {
+    sum += rev[i] * (i % 2 === 0 ? 3 : 1);
+  }
+  const expected = (10 - (sum % 10)) % 10;
+  return expected === check;
+}
 
 export function MobileScanner({
   open,
@@ -66,10 +91,20 @@ export function MobileScanner({
 }: MobileScannerProps) {
   const { user } = useAuth();
   const { activeGroup } = useActiveGroup();
+  const { t } = useT();
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
-  const lastScanRef = useRef<{ code: string; ts: number }>({ code: "", ts: 0 });
+  /** code → last submission timestamp (for per-code cooldown) */
+  const lastSubmissionsRef = useRef<Map<string, number>>(new Map());
+  /** last global submission timestamp (any code) */
+  const lastGlobalTsRef = useRef<number>(0);
+  /** consecutive-confirmation buffer */
+  const confirmBufRef = useRef<{ code: string; count: number; firstTs: number }>({
+    code: "",
+    count: 0,
+    firstTs: 0,
+  });
   const selectedDispensaIdRef = useRef<string>("");
   const busyRef = useRef(false);
   const scanningActiveRef = useRef(false);
@@ -100,7 +135,6 @@ export function MobileScanner({
   useEffect(() => {
     if (!open || defaultDispensaId || !user) return;
     (async () => {
-      console.log("[Scanner] Caricamento elenco dispense...");
       let q = supabase.from("dispense").select("id, name, color, group_id");
       if (activeGroup) {
         q = q.or(
@@ -112,7 +146,7 @@ export function MobileScanner({
       const { data, error } = await q.order("name");
 
       if (error) {
-        console.error("[Scanner] Errore caricamento dispense:", error);
+        console.error("[Scanner] dispense load error:", error);
         return;
       }
 
@@ -124,10 +158,9 @@ export function MobileScanner({
         const found = saved && list.find((d) => d.id === saved);
         const finalId = found ? (saved as string) : list[0].id;
         setSelectedDispensaId(finalId);
-        console.log("[Scanner] Dispensa selezionata:", finalId);
       }
     })();
-  }, [open, defaultDispensaId, user, activeGroup]);
+  }, [open, defaultDispensaId, user, activeGroup, selectedDispensaId]);
 
   useEffect(() => {
     if (selectedDispensaId) {
@@ -148,17 +181,12 @@ export function MobileScanner({
     async (barcode: string) => {
       const dispensaId = selectedDispensaIdRef.current;
       if (!dispensaId) {
-        console.warn(
-          "[Scanner] Scansione annullata: nessuna dispensa selezionata.",
-        );
-        appToast.warning("Seleziona prima una dispensa");
+        appToast.warning(t("scanner.selectPantryFirst"));
         return;
       }
 
       busyRef.current = true;
-      // Inizio cronometro
       const startTime = performance.now();
-      console.log(`[Scanner] 🚀 Avvio elaborazione: ${barcode}`);
 
       try {
         const { data, error } = await supabase.functions.invoke(
@@ -176,11 +204,14 @@ export function MobileScanner({
         if (error || data?.error)
           throw new Error(error?.message || data?.error);
 
-        // Calcolo tempo trascorso
         const duration = (performance.now() - startTime).toFixed(0);
         console.log(
-          `[Scanner] ✅ Completato in ${duration}ms. Prodotto: ${data?.productName}`,
+          `[Scanner] ✅ ${duration}ms · ${data?.productName} (${barcode})`,
         );
+
+        // Record successful submission to drive the per-code cooldown
+        lastSubmissionsRef.current.set(barcode, Date.now());
+        lastGlobalTsRef.current = Date.now();
 
         playSound("success");
         setScanCount((c) => c + 1);
@@ -189,7 +220,7 @@ export function MobileScanner({
 
         const flashItem: SuccessFlash = {
           id: Date.now(),
-          productName: data?.productName ?? "Prodotto aggiunto",
+          productName: data?.productName ?? t("scanner.productAddedDefault"),
           productImage: data?.productImage ?? null,
           newQuantity: data?.newQuantity ?? 0,
         };
@@ -202,43 +233,61 @@ export function MobileScanner({
         onScanComplete?.();
       } catch (e: any) {
         const duration = (performance.now() - startTime).toFixed(0);
-        console.error(`[Scanner] ❌ Errore dopo ${duration}ms:`, e.message);
+        console.error(`[Scanner] ❌ ${duration}ms:`, e.message);
 
         playSound("error");
-        appToast.error("Errore", {
-          description: e.message || "Prodotto non trovato",
+        appToast.error(t("common.error"), {
+          description: e.message || t("scanner.productNotFound"),
         });
       } finally {
         busyRef.current = false;
       }
     },
-    [onScanComplete],
+    [onScanComplete, t],
   );
 
   const handleDetected = useCallback(
-    (barcode: string) => {
+    (raw: string) => {
       if (!scanningActiveRef.current) return;
-      const code = barcode.trim();
+      const code = raw.trim();
       if (!code) return;
 
-      if (busyRef.current) {
-        console.log("[Scanner] Coda occupata, ignoro rilevamento:", code);
+      // Reject GTINs with invalid checksum (the #1 source of "wrong barcode")
+      if (!isValidGtin(code)) {
+        // Reset buffer so a fresh, correct read isn't blocked
+        confirmBufRef.current = { code: "", count: 0, firstTs: 0 };
         return;
       }
+
+      if (busyRef.current) return;
 
       const now = Date.now();
+
+      // Global cooldown right after any submission to dampen burst-reads
+      if (now - lastGlobalTsRef.current < GLOBAL_COOLDOWN_MS) return;
+
+      // Per-code cooldown so the same item isn't auto-incremented on every frame
+      const lastForCode = lastSubmissionsRef.current.get(code) ?? 0;
+      if (now - lastForCode < SAME_CODE_COOLDOWN_MS) return;
+
+      // Multi-frame confirmation buffer for accuracy
+      const buf = confirmBufRef.current;
       if (
-        lastScanRef.current.code === code &&
-        now - lastScanRef.current.ts < SCAN_COOLDOWN_MS
+        buf.code === code &&
+        now - buf.firstTs < CONFIRM_WINDOW_MS
       ) {
-        console.log("[Scanner] Codice ignorato (cooldown):", code);
-        return;
+        buf.count += 1;
+      } else {
+        confirmBufRef.current = { code, count: 1, firstTs: now };
       }
 
-      console.log("[Scanner] Codice rilevato:", code);
-      lastScanRef.current = { code, ts: now };
+      if (confirmBufRef.current.count < CONFIRM_THRESHOLD) return;
 
-      if (navigator.vibrate) navigator.vibrate(40);
+      // Confirmed → reset buffer and submit
+      confirmBufRef.current = { code: "", count: 0, firstTs: 0 };
+      lastGlobalTsRef.current = now;
+
+      if (navigator.vibrate) navigator.vibrate(30);
       submitScan(code);
     },
     [submitScan],
@@ -246,7 +295,6 @@ export function MobileScanner({
 
   useEffect(() => {
     if (!open) return;
-    console.log("[Scanner] Inizializzazione fotocamera...");
 
     let isMounted = true;
     const hints = new Map();
@@ -257,18 +305,36 @@ export function MobileScanner({
       BarcodeFormat.UPC_E,
       BarcodeFormat.CODE_128,
       BarcodeFormat.CODE_39,
+      BarcodeFormat.ITF,
     ]);
+    // TRY_HARDER produces more reads per frame → more chances to confirm.
     hints.set(DecodeHintType.TRY_HARDER, true);
 
-    const reader = new BrowserMultiFormatReader(hints);
+    const reader = new BrowserMultiFormatReader(hints, {
+      // Decode every ~120ms (faster than the 500ms default) → quicker detection.
+      delayBetweenScanAttempts: 120,
+      delayBetweenScanSuccess: 120,
+    });
 
     const startCamera = async () => {
-      await new Promise((r) => setTimeout(r, 200));
+      await new Promise((r) => setTimeout(r, 100));
       if (!videoRef.current || !isMounted) return;
 
       try {
+        // Hi-res constraints — better focus on dense barcodes.
+        const constraints: MediaStreamConstraints = {
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            // @ts-expect-error advanced not in TS lib
+            advanced: [{ focusMode: "continuous" }],
+          },
+          audio: false,
+        };
+
         const controls = await reader.decodeFromConstraints(
-          { video: { facingMode: { ideal: "environment" } } },
+          constraints,
           videoRef.current,
           (result) => {
             if (result && isMounted) handleDetected(result.getText());
@@ -279,42 +345,64 @@ export function MobileScanner({
           return;
         }
         controlsRef.current = controls;
+
+        // Try to lock continuous autofocus + exposure on the active track for
+        // sharper reads. Best-effort: silently ignored if unsupported.
+        const stream = videoRef.current.srcObject as MediaStream | null;
+        const track = stream?.getVideoTracks()?.[0];
+        if (track && "applyConstraints" in track) {
+          try {
+            await track.applyConstraints({
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              advanced: [
+                { focusMode: "continuous" },
+                { exposureMode: "continuous" },
+                { whiteBalanceMode: "continuous" },
+              ],
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any);
+          } catch {
+            /* ignore */
+          }
+        }
+
         setCameraReady(true);
-        console.log("[Scanner] Stream video attivo.");
       } catch (err) {
-        console.error("[Scanner] Errore inizializzazione stream:", err);
-        if (isMounted) setCameraError("Impossibile accedere alla fotocamera.");
+        console.error("[Scanner] camera init error:", err);
+        if (isMounted) setCameraError(t("scanner.cameraError"));
       }
     };
 
     startCamera();
     return () => {
-      console.log("[Scanner] Chiusura scanner e rilascio risorse.");
       isMounted = false;
       scanningActiveRef.current = false;
       if (controlsRef.current) controlsRef.current.stop();
       const stream = videoRef.current?.srcObject as MediaStream | null;
-      stream?.getTracks().forEach((t) => t.stop());
+      stream?.getTracks().forEach((tr) => tr.stop());
       setCameraReady(false);
+      // Reset accuracy state between sessions
+      confirmBufRef.current = { code: "", count: 0, firstTs: 0 };
+      lastSubmissionsRef.current.clear();
+      lastGlobalTsRef.current = 0;
     };
-  }, [open, handleDetected]);
+  }, [open, handleDetected, t]);
 
   const startScanning = () => {
     if (!selectedDispensaIdRef.current) {
-      appToast.warning("Seleziona prima una dispensa");
+      appToast.warning(t("scanner.selectPantryFirst"));
       return;
     }
-    console.log("[Scanner] Scansione attivata (pulsante premuto)");
+    // Reset buffer on each press for clean confirmation runs
+    confirmBufRef.current = { code: "", count: 0, firstTs: 0 };
     scanningActiveRef.current = true;
     setIsHolding(true);
-    if (navigator.vibrate) navigator.vibrate(20);
+    if (navigator.vibrate) navigator.vibrate(15);
   };
 
   const stopScanning = () => {
-    if (scanningActiveRef.current) {
-      console.log("[Scanner] Scansione disattivata (pulsante rilasciato)");
-    }
     scanningActiveRef.current = false;
+    confirmBufRef.current = { code: "", count: 0, firstTs: 0 };
     setIsHolding(false);
   };
 
@@ -328,9 +416,11 @@ export function MobileScanner({
                 <ScanLine className="h-5 w-5 text-primary" />
               </div>
               <div className="text-left">
-                <DialogTitle className="text-base">Scanner</DialogTitle>
+                <DialogTitle className="text-base">
+                  {t("scanner.title")}
+                </DialogTitle>
                 <DialogDescription className="text-xs">
-                  Tieni premuto il pulsante per scansionare
+                  {t("scanner.holdToScan")}
                 </DialogDescription>
               </div>
             </div>
@@ -344,7 +434,7 @@ export function MobileScanner({
               onValueChange={setSelectedDispensaId}
             >
               <SelectTrigger className="w-full bg-muted/50 border-none h-11">
-                <SelectValue placeholder="Scegli destinazione" />
+                <SelectValue placeholder={t("scanner.chooseDestination")} />
               </SelectTrigger>
               <SelectContent>
                 {dispense.map((d) => (
@@ -418,7 +508,9 @@ export function MobileScanner({
           {!cameraReady && !cameraError && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-black/80 gap-3 z-20">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Avvio fotocamera...</p>
+              <p className="text-sm font-medium">
+                {t("scanner.startingCamera")}
+              </p>
             </div>
           )}
 
@@ -430,7 +522,7 @@ export function MobileScanner({
                 variant="outline"
                 onClick={() => window.location.reload()}
               >
-                Riprova
+                {t("common.retry")}
               </Button>
             </div>
           )}
@@ -443,7 +535,7 @@ export function MobileScanner({
                     <img
                       src={flash.productImage}
                       className="object-cover h-full w-full"
-                      alt="prodotto"
+                      alt={flash.productName}
                     />
                   ) : (
                     <Package className="h-6 w-6 text-muted-foreground" />
@@ -453,14 +545,14 @@ export function MobileScanner({
                   <div className="flex items-center gap-1.5 mb-0.5">
                     <CheckCircle2 className="h-4 w-4 text-green-500" />
                     <span className="text-[10px] font-bold uppercase tracking-wider text-green-600 dark:text-green-400">
-                      Aggiunto
+                      {t("scanner.productAdded")}
                     </span>
                   </div>
                   <p className="text-sm font-bold truncate leading-tight">
                     {flash.productName}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Totale:{" "}
+                    {t("common.total")}:{" "}
                     <span className="font-semibold text-foreground">
                       {flash.newQuantity}
                     </span>
@@ -477,7 +569,7 @@ export function MobileScanner({
         <div className="bg-background border-t px-4 pt-4 pb-5 shrink-0 flex flex-col items-center gap-3">
           <button
             type="button"
-            aria-label="Tieni premuto per scansionare"
+            aria-label={t("scanner.holdButton")}
             disabled={!cameraReady}
             onPointerDown={(e) => {
               e.preventDefault();
@@ -504,14 +596,14 @@ export function MobileScanner({
           </button>
           <p className="text-xs text-muted-foreground font-medium">
             {isHolding
-              ? "Scansione attiva..."
-              : "Tieni premuto per scansionare"}
+              ? t("scanner.scanningActive")
+              : t("scanner.holdButton")}
           </p>
 
           <div className="w-full flex items-center justify-between pt-1">
             <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/5 rounded-full text-xs font-medium text-primary">
               <Sparkles className="h-3.5 w-3.5" />
-              <span>{scanCount} scansionati</span>
+              <span>{t("scanner.scannedCount", { count: scanCount })}</span>
             </div>
             <Button
               variant="ghost"
@@ -519,7 +611,7 @@ export function MobileScanner({
               onClick={() => onOpenChange(false)}
               className="text-muted-foreground font-semibold"
             >
-              Chiudi
+              {t("common.close")}
             </Button>
           </div>
         </div>

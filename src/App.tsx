@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { TutorialProvider } from "@/contexts/TutorialContext";
 import { ActiveGroupProvider, useActiveGroup } from "@/contexts/ActiveGroupContext";
+import { LanguageProvider } from "@/lib/i18n";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AppHeader } from "@/components/AppHeader";
@@ -70,6 +71,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <LanguageProvider>
     <AuthProvider>
       <NotificationProvider>
         <TutorialProvider>
@@ -114,6 +116,7 @@ const App = () => (
         </TutorialProvider>
       </NotificationProvider>
     </AuthProvider>
+    </LanguageProvider>
   </QueryClientProvider>
 );
 

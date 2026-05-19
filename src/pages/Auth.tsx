@@ -10,11 +10,14 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/backend/client';
 import { Warehouse, Mail, Lock, User, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
 import { z } from 'zod';
-
-const emailSchema = z.string().email('Email non valida');
-const passwordSchema = z.string().min(6, 'La password deve avere almeno 6 caratteri');
+import { useT } from '@/lib/i18n';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 const Auth = () => {
+  const { t } = useT();
+  const emailSchema = z.string().email(t('auth.invalidEmail'));
+  const passwordSchema = z.string().min(6, t('auth.passwordTooShort'));
+
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -53,18 +56,18 @@ const Auth = () => {
         const { error } = await signIn(email, password);
         if (error) {
           let message = error.message;
-          if (error.message.includes('Invalid login credentials')) message = 'Credenziali non valide.';
-          if (error.message.includes('Email not confirmed')) message = 'Email non verificata.';
-          toast({ variant: 'destructive', title: 'Errore di accesso', description: message });
+          if (error.message.includes('Invalid login credentials')) message = t('auth.invalidCredentials');
+          if (error.message.includes('Email not confirmed')) message = t('auth.emailNotConfirmed');
+          toast({ variant: 'destructive', title: t('auth.loginError'), description: message });
         } else {
-          toast({ title: 'Benvenuto!', description: 'Accesso effettuato con successo.' });
+          toast({ title: t('auth.welcomeToast'), description: t('auth.loginSuccess') });
         }
       } else {
         const { error } = await signUp(email, password, username);
         if (error) {
           let message = error.message;
-          if (error.message.includes('User already registered')) message = 'Email già registrata.';
-          toast({ variant: 'destructive', title: 'Errore di registrazione', description: message });
+          if (error.message.includes('User already registered')) message = t('auth.emailAlreadyRegistered');
+          toast({ variant: 'destructive', title: t('auth.signupError'), description: message });
         } else {
           setShowVerificationDialog(true);
         }
@@ -77,7 +80,7 @@ const Auth = () => {
   const handleForgotPassword = async () => {
     const emailResult = emailSchema.safeParse(resetEmail);
     if (!emailResult.success) {
-      toast({ variant: 'destructive', title: 'Errore', description: 'Inserisci un email valida' });
+      toast({ variant: 'destructive', title: t('common.error'), description: t('auth.enterValidEmail') });
       return;
     }
     setIsResetting(true);
@@ -86,11 +89,11 @@ const Auth = () => {
         redirectTo: `${window.location.origin}/reset-password`,
       });
       if (error) throw error;
-      toast({ title: 'Email inviata!', description: 'Controlla la tua casella per reimpostare la password.' });
+      toast({ title: t('auth.resetEmailSent'), description: t('auth.resetEmailDesc') });
       setShowForgotPassword(false);
       setResetEmail('');
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Errore', description: error.message });
+      toast({ variant: 'destructive', title: t('common.error'), description: error.message });
     } finally {
       setIsResetting(false);
     }
@@ -107,19 +110,23 @@ const Auth = () => {
         <div className="absolute -bottom-1/2 -left-1/2 w-full h-full bg-gradient-to-tr from-primary/5 via-transparent to-transparent rounded-full" />
       </div>
 
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageSwitcher variant="outline" />
+      </div>
+
       <Dialog open={showVerificationDialog} onOpenChange={setShowVerificationDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <div className="mx-auto h-16 w-16 rounded-2xl bg-success/10 flex items-center justify-center mb-4"><CheckCircle2 className="h-8 w-8 text-success" /></div>
-            <DialogTitle className="text-center text-xl">Account creato!</DialogTitle>
+            <DialogTitle className="text-center text-xl">{t('auth.accountCreated')}</DialogTitle>
             <DialogDescription className="text-center space-y-2">
-              <p>Abbiamo inviato un'email di verifica a <strong>{email}</strong>.</p>
-              <p>Clicca sul link nell'email per completare la registrazione.</p>
+              <span className="block">{t('auth.verificationSentTo')} <strong>{email}</strong>.</span>
+              <span className="block">{t('auth.clickLinkToComplete')}</span>
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 pt-4">
-            <Button onClick={() => { setShowVerificationDialog(false); setIsLogin(true); setEmail(''); setPassword(''); setUsername(''); }}>Ho verificato, accedi</Button>
-            <Button variant="outline" onClick={() => setShowVerificationDialog(false)}>Lo farò più tardi</Button>
+            <Button onClick={() => { setShowVerificationDialog(false); setIsLogin(true); setEmail(''); setPassword(''); setUsername(''); }}>{t('auth.verifiedSignIn')}</Button>
+            <Button variant="outline" onClick={() => setShowVerificationDialog(false)}>{t('auth.laterButton')}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -127,16 +134,16 @@ const Auth = () => {
       <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Password dimenticata?</DialogTitle>
-            <DialogDescription>Inserisci la tua email per ricevere un link per reimpostare la password.</DialogDescription>
+            <DialogTitle>{t('auth.forgotTitle')}</DialogTitle>
+            <DialogDescription>{t('auth.forgotDesc')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label htmlFor="reset-email">Email</Label>
-              <Input id="reset-email" type="email" placeholder="nome@esempio.com" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} />
+              <Label htmlFor="reset-email">{t('auth.email')}</Label>
+              <Input id="reset-email" type="email" placeholder={t('auth.emailPlaceholder')} value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} />
             </div>
             <Button onClick={handleForgotPassword} disabled={isResetting} className="w-full">
-              {isResetting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Invio in corso...</> : 'Invia link di reset'}
+              {isResetting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t('auth.sending')}</> : t('auth.sendResetLink')}
             </Button>
           </div>
         </DialogContent>
@@ -144,43 +151,43 @@ const Auth = () => {
 
       <div className="w-full max-w-md relative z-10">
         <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8 group">
-          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />Torna alla home
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />{t('common.backToHome')}
         </Link>
 
         <Card className="border-2 shadow-xl animate-scale-in">
           <CardHeader className="text-center pb-2">
             <div className="mx-auto h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4"><Warehouse className="h-8 w-8 text-primary" /></div>
-            <CardTitle className="text-2xl">{isLogin ? 'Bentornato!' : 'Crea il tuo account'}</CardTitle>
-            <CardDescription>{isLogin ? 'Accedi per gestire le tue dispense' : 'Inizia a organizzare le tue scorte'}</CardDescription>
+            <CardTitle className="text-2xl">{isLogin ? t('auth.welcomeBack') : t('auth.createAccount')}</CardTitle>
+            <CardDescription>{isLogin ? t('auth.loginSubtitle') : t('auth.signupSubtitle')}</CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               {!isLogin && (
                 <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="username" type="text" placeholder="Il tuo username" value={username} onChange={(e) => setUsername(e.target.value)} className="pl-10" /></div>
+                  <Label htmlFor="username">{t('auth.username')}</Label>
+                  <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="username" type="text" placeholder={t('auth.usernamePlaceholder')} value={username} onChange={(e) => setUsername(e.target.value)} className="pl-10" /></div>
                 </div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="email" type="email" placeholder="nome@esempio.com" value={email} onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors({ ...errors, email: undefined }); }} className={`pl-10 ${errors.email ? 'border-destructive' : ''}`} /></div>
+                <Label htmlFor="email">{t('auth.email')}</Label>
+                <div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="email" type="email" placeholder={t('auth.emailPlaceholder')} value={email} onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors({ ...errors, email: undefined }); }} className={`pl-10 ${errors.email ? 'border-destructive' : ''}`} /></div>
                 {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t('auth.password')}</Label>
                 <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors({ ...errors, password: undefined }); }} className={`pl-10 ${errors.password ? 'border-destructive' : ''}`} /></div>
                 {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
               </div>
               {isLogin && (
-                <button type="button" onClick={() => setShowForgotPassword(true)} className="text-sm text-primary hover:underline">Password dimenticata?</button>
+                <button type="button" onClick={() => setShowForgotPassword(true)} className="text-sm text-primary hover:underline">{t('auth.forgotPassword')}</button>
               )}
               <Button type="submit" className="w-full mt-6" size="lg" disabled={isLoading}>
-                {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isLogin ? 'Accesso in corso...' : 'Registrazione in corso...'}</> : isLogin ? 'Accedi' : 'Crea account'}
+                {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isLogin ? t('auth.signingIn') : t('auth.signingUp')}</> : isLogin ? t('auth.signIn') : t('auth.signUp')}
               </Button>
             </form>
             <div className="mt-6 text-center">
               <button type="button" onClick={() => { setIsLogin(!isLogin); setErrors({}); }} className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                {isLogin ? "Non hai un account? Registrati" : "Hai già un account? Accedi"}
+                {isLogin ? t('auth.noAccount') : t('auth.hasAccount')}
               </button>
             </div>
           </CardContent>

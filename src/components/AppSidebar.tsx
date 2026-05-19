@@ -5,24 +5,27 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { useTutorialContext } from "@/contexts/TutorialContext";
 import { Link } from "react-router-dom";
-
-const menuItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Dispense", url: "/dispense", icon: Warehouse },
-  { title: "Dispositivi", url: "/dispositivi", icon: Cpu },
-  { title: "Inventario", url: "/inventario", icon: Package },
-  { title: "Scansiona", url: "/scan", icon: ScanLine },
-  { title: "Grafici", url: "/grafici", icon: BarChart3 },
-  { title: "Gruppi", url: "/gruppi", icon: Users },
-  { title: "Blog", url: "/blog", icon: BookOpen },
-];
+import { useT } from "@/lib/i18n";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const { signOut, user } = useAuth();
   const { startTutorial } = useTutorialContext();
   const navigate = useNavigate();
+  const { t } = useT();
   const isCollapsed = state === "collapsed";
+
+  const menuItems = [
+    { title: t("sidebar.dashboard"), url: "/dashboard", icon: LayoutDashboard },
+    { title: t("sidebar.pantries"), url: "/dispense", icon: Warehouse },
+    { title: t("sidebar.devices"), url: "/dispositivi", icon: Cpu },
+    { title: t("sidebar.inventory"), url: "/inventario", icon: Package },
+    { title: t("sidebar.scan"), url: "/scan", icon: ScanLine },
+    { title: t("sidebar.charts"), url: "/grafici", icon: BarChart3 },
+    { title: t("sidebar.groups"), url: "/gruppi", icon: Users },
+    { title: t("sidebar.blog"), url: "/blog", icon: BookOpen },
+  ];
 
   const handleLogout = async () => {
     await signOut();
@@ -45,7 +48,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
+                <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${isActive ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/50"}`}>
                       <item.icon className="h-5 w-5 flex-shrink-0" />
@@ -59,14 +62,14 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup className="mt-auto">
-          <SidebarGroupLabel className="px-4">{!isCollapsed && "Aiuto"}</SidebarGroupLabel>
+          <SidebarGroupLabel className="px-4">{!isCollapsed && t("sidebar.help")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <button type="button" onClick={() => startTutorial()} className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all hover:bg-sidebar-accent/50 w-full text-left cursor-pointer">
                     <HelpCircle className="h-5 w-5 flex-shrink-0" />
-                    {!isCollapsed && <span>Tutorial</span>}
+                    {!isCollapsed && <span>{t("sidebar.tutorial")}</span>}
                   </button>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -74,15 +77,20 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      
+
       <SidebarFooter className="p-4 border-t">
         {user && (
           <div className="space-y-3">
+            {!isCollapsed && (
+              <div className="flex justify-start">
+                <LanguageSwitcher variant="outline" size="sm" />
+              </div>
+            )}
             <Button variant="ghost" className={`w-full justify-start gap-3 ${isCollapsed ? 'px-2' : ''}`} onClick={() => navigate('/profilo')}>
-              <User className="h-5 w-5" />{!isCollapsed && "Profilo"}
+              <User className="h-5 w-5" />{!isCollapsed && t("sidebar.profile")}
             </Button>
             <Button variant="ghost-destructive" className={`w-full justify-start gap-3 ${isCollapsed ? 'px-2' : ''}`} onClick={handleLogout}>
-              <LogOut className="h-5 w-5" />{!isCollapsed && "Esci"}
+              <LogOut className="h-5 w-5" />{!isCollapsed && t("sidebar.signOut")}
             </Button>
           </div>
         )}
