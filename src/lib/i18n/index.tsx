@@ -6,7 +6,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { translations, type Language, type TranslationDict } from "./translations";
+import { translations, type Language } from "./translations";
 
 const STORAGE_KEY = "pantryos.lang";
 const DEFAULT_LANG: Language = "en";
@@ -19,12 +19,15 @@ interface LanguageContextValue {
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
-function resolvePath(dict: TranslationDict, path: string): string | undefined {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let cur: any = dict;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyDict = Record<string, any>;
+
+function resolvePath(dict: AnyDict, path: string): string | undefined {
+  let cur: unknown = dict;
   for (const seg of path.split(".")) {
-    if (cur && typeof cur === "object" && seg in cur) cur = cur[seg];
-    else return undefined;
+    if (cur && typeof cur === "object" && seg in (cur as AnyDict)) {
+      cur = (cur as AnyDict)[seg];
+    } else return undefined;
   }
   return typeof cur === "string" ? cur : undefined;
 }
@@ -58,9 +61,10 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   const t = useCallback(
     (path: string, vars?: Record<string, string | number>) => {
-      const dict = translations[lang];
       let value =
-        resolvePath(dict, path) ?? resolvePath(translations.en, path) ?? path;
+        resolvePath(translations[lang] as AnyDict, path) ??
+        resolvePath(translations.en as AnyDict, path) ??
+        path;
       if (vars) {
         for (const [k, v] of Object.entries(vars)) {
           value = value.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));
