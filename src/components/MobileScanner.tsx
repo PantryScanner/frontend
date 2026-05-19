@@ -353,12 +353,14 @@ export function MobileScanner({
         if (track && "applyConstraints" in track) {
           try {
             await track.applyConstraints({
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               advanced: [
                 { focusMode: "continuous" },
                 { exposureMode: "continuous" },
                 { whiteBalanceMode: "continuous" },
               ],
-            } as MediaTrackConstraints);
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any);
           } catch {
             /* ignore */
           }
