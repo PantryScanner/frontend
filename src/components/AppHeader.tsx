@@ -46,13 +46,13 @@ export function AppHeader() {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return "Ora";
-    if (diffMins < 60) return `${diffMins} min fa`;
+    if (diffMins < 1) return t("header.now");
+    if (diffMins < 60) return `${diffMins} ${t("header.minAgo")}`;
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h fa`;
+    if (diffHours < 24) return `${diffHours}${t("header.hAgo")}`;
     const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 7) return `${diffDays}g fa`;
-    return date.toLocaleDateString("it-IT");
+    if (diffDays < 7) return `${diffDays}${t("header.dAgo")}`;
+    return date.toLocaleDateString();
   };
 
   return (
@@ -64,16 +64,17 @@ export function AppHeader() {
         </div>
         <div className="relative w-64 max-w-md hidden md:block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Cerca prodotti, dispense..." className="pl-10" />
+          <Input placeholder={t("header.searchPlaceholder")} className="pl-10" />
         </div>
       </div>
       
       <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+        <LanguageSwitcher />
         <Button
           variant="ghost"
           size="icon"
           className="md:hidden"
-          aria-label="Apri scanner"
+          aria-label={t("header.openScanner")}
           onClick={() => setScannerOpen(true)}
         >
           <ScanLine className="h-5 w-5" />
