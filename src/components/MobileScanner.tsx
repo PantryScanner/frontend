@@ -352,14 +352,13 @@ export function MobileScanner({
         const track = stream?.getVideoTracks()?.[0];
         if (track && "applyConstraints" in track) {
           try {
-            // @ts-expect-error advanced constraints not in TS lib
             await track.applyConstraints({
               advanced: [
                 { focusMode: "continuous" },
                 { exposureMode: "continuous" },
                 { whiteBalanceMode: "continuous" },
               ],
-            });
+            } as MediaTrackConstraints);
           } catch {
             /* ignore */
           }
