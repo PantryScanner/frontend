@@ -9,12 +9,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNotificationContext } from "@/contexts/NotificationContext";
 import { GroupSwitcher } from "@/components/GroupSwitcher";
 import { MobileScanner } from "@/components/MobileScanner";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 export function AppHeader() {
   const { notifications, unreadCount, markAllAsRead, deleteNotification, clearAll } = useNotificationContext();
   const [isOpen, setIsOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const { t } = useT();
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
