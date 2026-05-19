@@ -92,10 +92,10 @@ export function AppHeader() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-96 bg-popover p-0" sideOffset={8}>
             <div className="flex items-center justify-between px-4 py-3 border-b">
-              <h3 className="font-semibold">Notifiche</h3>
+              <h3 className="font-semibold">{t("header.notifications")}</h3>
               {notifications.length > 0 && (
                 <Button variant="ghost-destructive" size="sm" className="text-xs text-muted-foreground" onClick={(e) => { e.preventDefault(); clearAll(); }}>
-                  <Trash2 className="h-3 w-3 mr-1" />Elimina tutte
+                  <Trash2 className="h-3 w-3 mr-1" />{t("common.deleteAll")}
                 </Button>
               )}
             </div>
@@ -103,7 +103,7 @@ export function AppHeader() {
             {notifications.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground">
                 <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Nessuna notifica</p>
+                <p className="text-sm">{t("header.noNotifications")}</p>
               </div>
             ) : (
               <ScrollArea className="h-[400px]">
