@@ -296,9 +296,9 @@ const Landing = () => {
       {/* Trusted by section */}
       <section className="py-12 border-y bg-muted/30 overflow-hidden">
         <div className="container mx-auto px-6">
-          <p className="text-center text-sm text-muted-foreground mb-6">Scelto da aziende e famiglie in tutta Italia</p>
+          <p className="text-center text-sm text-muted-foreground mb-6">{t('landing.trustedBy')}</p>
           <div className="flex items-center justify-center gap-12 flex-wrap opacity-50">
-            {['Ristoranti', 'Hotel', 'Supermercati', 'Famiglie', 'Magazzini'].map((item, idx) => <div key={idx} className="text-xl font-bold text-muted-foreground">{item}</div>)}
+            {[t('landing.audiences.restaurants'), t('landing.audiences.hotels'), t('landing.audiences.supermarkets'), t('landing.audiences.families'), t('landing.audiences.warehouses')].map((item, idx) => <div key={idx} className="text-xl font-bold text-muted-foreground">{item}</div>)}
           </div>
         </div>
       </section>
@@ -326,11 +326,11 @@ const Landing = () => {
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 text-sm font-medium text-primary mb-6">
               <Zap className="h-4 w-4" />
-              Funzionalità
+              {t('landing.featuresBadge')}
             </div>
-            <h2 className="text-4xl lg:text-5xl font-bold mb-4">Tutto ciò che ti serve</h2>
+            <h2 className="text-4xl lg:text-5xl font-bold mb-4">{t('landing.featuresTitle')}</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Una suite completa di strumenti per gestire le tue scorte in modo intelligente
+              {t('landing.featuresLead')}
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -360,26 +360,26 @@ const Landing = () => {
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 text-sm font-medium text-primary mb-6">
               <Play className="h-4 w-4" />
-              Come funziona
+              {t('landing.howBadge')}
             </div>
-            <h2 className="text-4xl lg:text-5xl font-bold mb-4">Tre semplici passaggi</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">Inizia in meno di 5 minuti</p>
+            <h2 className="text-4xl lg:text-5xl font-bold mb-4">{t('landing.howTitle')}</h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">{t('landing.howLead')}</p>
           </div>
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {[{
             step: 1,
-            title: "Crea le dispense",
-            desc: "Organizza i tuoi spazi di stoccaggio virtuali",
+            title: t('landing.steps.oneTitle'),
+            desc: t('landing.steps.oneDesc'),
             icon: Warehouse
           }, {
             step: 2,
-            title: "Collega lo scanner",
-            desc: "Configura i dispositivi IoT in 30 secondi",
+            title: t('landing.steps.twoTitle'),
+            desc: t('landing.steps.twoDesc'),
             icon: Scan
           }, {
             step: 3,
-            title: "Scansiona e monitora",
-            desc: "Traccia automaticamente le scorte in tempo reale",
+            title: t('landing.steps.threeTitle'),
+            desc: t('landing.steps.threeDesc'),
             icon: BarChart3
           }].map((item, index) => <div key={index} className="text-center animate-fade-in relative" style={{
             animationDelay: `${index * 0.2}s`
@@ -406,9 +406,9 @@ const Landing = () => {
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 text-sm font-medium text-primary mb-6">
               <Users className="h-4 w-4" />
-              Testimonianze
+              {t('landing.testimonialsBadge')}
             </div>
-            <h2 className="text-4xl lg:text-5xl font-bold mb-4">Cosa dicono i nostri utenti</h2>
+            <h2 className="text-4xl lg:text-5xl font-bold mb-4">{t('landing.testimonialsTitle')}</h2>
           </div>
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {testimonials.map((testimonial, index) => <div key={index} className="bg-card border rounded-2xl p-8 hover:shadow-glow transition-all animate-fade-in" style={{
