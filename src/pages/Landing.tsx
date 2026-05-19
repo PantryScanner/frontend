@@ -137,24 +137,23 @@ const Landing = () => {
             <div className="space-y-8">
               <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 text-sm font-medium text-primary animate-fade-in backdrop-blur-sm">
                 <Sparkles className="h-4 w-4 animate-pulse" />
-                <span>Gestione Inventario Intelligente</span>
-                <span className="bg-primary/20 px-2 py-0.5 rounded-full text-xs">Nuovo</span>
+                <span>{t('landing.heroBadge')}</span>
+                <span className="bg-primary/20 px-2 py-0.5 rounded-full text-xs">{t('common.new')}</span>
               </div>
               
               <h1 className="text-5xl lg:text-7xl font-bold leading-[1.1] animate-fade-in" style={{
               animationDelay: '0.1s'
             }}>
-                Il tuo inventario,
+                {t('landing.heroTitle1')}
                 <span className="block mt-2 bg-gradient-to-r from-primary via-primary to-success bg-clip-text text-transparent">
-                  sotto controllo.
+                  {t('landing.heroTitle2')}
                 </span>
               </h1>
               
               <p className="text-xl text-muted-foreground max-w-xl animate-fade-in leading-relaxed" style={{
               animationDelay: '0.2s'
             }}>
-                Monitora le scorte della tua casa o attività con dispositivi IoT intelligenti. 
-                Ricevi notifiche, genera liste della spesa e analizza i consumi in tempo reale.
+                {t('landing.heroLead')}
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4 animate-fade-in" style={{
@@ -162,14 +161,14 @@ const Landing = () => {
             }}>
                 <Link to="/auth">
                   <Button size="lg" className="w-full sm:w-auto text-lg px-8 py-6 shadow-glow hover:shadow-lg transition-all group bg-gradient-to-r from-primary to-primary/80">
-                    Inizia Gratis
+                    {t('landing.ctaStart')}
                     <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
                 <Link to="/about">
                   <Button size="lg" variant="outline" className="w-full sm:w-auto text-lg px-8 py-6 backdrop-blur-sm">
                     <Play className="mr-2 h-5 w-5" />
-                    Guarda Demo
+                    {t('landing.ctaWatchDemo')}
                   </Button>
                 </Link>
               </div>
@@ -202,7 +201,7 @@ const Landing = () => {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">145</p>
-                      <p className="text-xs text-muted-foreground">Prodotti</p>
+                      <p className="text-xs text-muted-foreground">{t('landing.preview.productsLabel')}</p>
                     </div>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -219,14 +218,14 @@ const Landing = () => {
                       <Shield className="h-5 w-5 text-success" />
                     </div>
                     <div>
-                      <span className="text-sm font-medium">Sync OK</span>
+                      <span className="text-sm font-medium">{t('landing.preview.syncOk')}</span>
                       <div className="flex items-center gap-1">
                         <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
-                        <span className="text-xs text-muted-foreground">Live</span>
+                        <span className="text-xs text-muted-foreground">{t('landing.preview.live')}</span>
                       </div>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">4 dispositivi online</p>
+                  <p className="text-xs text-muted-foreground">{t('landing.preview.devicesOnline')}</p>
                 </div>
 
                 <div className="absolute -bottom-4 left-1/4 w-56 h-28 bg-card/80 backdrop-blur-xl border rounded-2xl shadow-2xl p-4 z-20" style={{
@@ -236,9 +235,9 @@ const Landing = () => {
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-medium flex items-center gap-2">
                       <Bell className="h-4 w-4 text-warning" />
-                      Alert
+                      {t('landing.preview.alert')}
                     </span>
-                    <span className="text-xs text-warning font-medium bg-warning/10 px-2 py-1 rounded-full">3 sotto soglia</span>
+                    <span className="text-xs text-warning font-medium bg-warning/10 px-2 py-1 rounded-full">{t('landing.preview.belowThreshold')}</span>
                   </div>
                   <div className="flex gap-2">
                     <div className="h-10 w-10 rounded-lg bg-warning/20 flex items-center justify-center">
