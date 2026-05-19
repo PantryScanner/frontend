@@ -446,30 +446,29 @@ const Landing = () => {
             }}>
                 <div className="flex items-center gap-2">
                   <div className="h-3 w-3 rounded-full bg-success animate-pulse" />
-                  <span className="text-sm font-medium">Online</span>
+                  <span className="text-sm font-medium">{t('common.online')}</span>
                 </div>
               </div>
             </div>
             <div className="order-1 lg:order-2">
               <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 text-sm font-medium text-primary mb-6">
                 <Cpu className="h-4 w-4" />
-                Hardware
+                {t('landing.hardwareBadge')}
               </div>
-              <h2 className="text-4xl lg:text-5xl font-bold mb-6">Scanner dedicati per la tua dispensa</h2>
+              <h2 className="text-4xl lg:text-5xl font-bold mb-6">{t('landing.hardwareTitle')}</h2>
               <p className="text-lg text-muted-foreground mb-8">
-                I nostri dispositivi IoT sono progettati per integrarsi perfettamente con PantryOS. 
-                Basta una scansione per aggiornare l'inventario.
+                {t('landing.hardwareLead')}
               </p>
               <div className="space-y-4 mb-8">
                 {[{
                 icon: Wifi,
-                text: "Connessione WiFi automatica"
+                text: t('landing.hardwareFeatures.wifi')
               }, {
                 icon: Lock,
-                text: "Batteria a lunga durata"
+                text: t('landing.hardwareFeatures.battery')
               }, {
                 icon: Zap,
-                text: "Configurazione in 30 secondi"
+                text: t('landing.hardwareFeatures.setup')
               }].map((item, idx) => <div key={idx} className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                       <item.icon className="h-5 w-5 text-primary" />
@@ -479,7 +478,7 @@ const Landing = () => {
               </div>
               <Link to="/scanners">
                 <Button size="lg" className="gap-2 shadow-glow">
-                  Scopri gli scanner
+                  {t('landing.discoverScanners')}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
@@ -499,22 +498,22 @@ const Landing = () => {
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 bg-primary/20 border border-primary/30 rounded-full px-4 py-2 text-sm font-medium text-primary mb-6">
                 <Sparkles className="h-4 w-4" />
-                Inizia oggi
+                {t('landing.ctaBadge')}
               </div>
-              <h2 className="text-4xl lg:text-5xl font-bold mb-4">Pronto a iniziare?</h2>
+              <h2 className="text-4xl lg:text-5xl font-bold mb-4">{t('landing.ctaTitle')}</h2>
               <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-                Unisciti a migliaia di utenti che hanno già ottimizzato la gestione delle loro scorte
+                {t('landing.ctaLead')}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link to="/auth">
                   <Button size="lg" className="text-lg px-10 py-6 shadow-glow group text-center">
-                    Crea il tuo account gratuito
+                    {t('landing.ctaCreateAccount')}
                     <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
                 <Link to="/pricing">
                   <Button size="lg" variant="outline" className="text-lg px-10 py-6 backdrop-blur-sm">
-                    Vedi i piani
+                    {t('landing.ctaSeePlans')}
                   </Button>
                 </Link>
               </div>
@@ -535,36 +534,36 @@ const Landing = () => {
                 <span className="font-bold text-xl">PantryOS</span>
               </Link>
               <p className="text-sm text-muted-foreground">
-                La soluzione intelligente per la gestione del tuo inventario domestico e aziendale.
+                {t('landing.footer.tagline')}
               </p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Prodotto</h4>
+              <h4 className="font-semibold mb-4">{t('landing.footer.product')}</h4>
               <div className="space-y-3 text-sm text-muted-foreground">
-                <Link to="/about" className="block hover:text-foreground transition-colors">Chi siamo</Link>
-                <Link to="/scanners" className="block hover:text-foreground transition-colors">Scanner</Link>
-                <Link to="/pricing" className="block hover:text-foreground transition-colors">Prezzi</Link>
+                <Link to="/about" className="block hover:text-foreground transition-colors">{t('nav.about')}</Link>
+                <Link to="/scanners" className="block hover:text-foreground transition-colors">{t('nav.scanners')}</Link>
+                <Link to="/pricing" className="block hover:text-foreground transition-colors">{t('nav.pricing')}</Link>
               </div>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Risorse</h4>
+              <h4 className="font-semibold mb-4">{t('landing.footer.resources')}</h4>
               <div className="space-y-3 text-sm text-muted-foreground">
-                <a href="#" className="block hover:text-foreground transition-colors">Documentazione</a>
-                <a href="#" className="block hover:text-foreground transition-colors">API</a>
-                <a href="#" className="block hover:text-foreground transition-colors">Blog</a>
+                <a href="#" className="block hover:text-foreground transition-colors">{t('landing.footer.docs')}</a>
+                <a href="#" className="block hover:text-foreground transition-colors">{t('landing.footer.api')}</a>
+                <Link to="/blog" className="block hover:text-foreground transition-colors">{t('nav.blog')}</Link>
               </div>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Legale</h4>
+              <h4 className="font-semibold mb-4">{t('landing.footer.legal')}</h4>
               <div className="space-y-3 text-sm text-muted-foreground">
-                <a href="#" className="block hover:text-foreground transition-colors">Privacy Policy</a>
-                <a href="#" className="block hover:text-foreground transition-colors">Termini di Servizio</a>
-                <a href="#" className="block hover:text-foreground transition-colors">Cookie Policy</a>
+                <a href="#" className="block hover:text-foreground transition-colors">{t('landing.footer.privacy')}</a>
+                <a href="#" className="block hover:text-foreground transition-colors">{t('landing.footer.terms')}</a>
+                <a href="#" className="block hover:text-foreground transition-colors">{t('landing.footer.cookies')}</a>
               </div>
             </div>
           </div>
           <div className="pt-8 border-t flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-muted-foreground">© {year} PantryOS. Tutti i diritti riservati.</p>
+            <p className="text-sm text-muted-foreground">© {year} PantryOS. {t('landing.footer.rights')}</p>
             <div className="flex gap-4">
               <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
                 <Globe className="h-5 w-5" />
