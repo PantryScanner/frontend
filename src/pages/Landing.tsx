@@ -3,10 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Package, Warehouse, BarChart3, Bell, ShoppingCart, Smartphone, ArrowRight, Check, Zap, Shield, RefreshCw, Cpu, ChevronRight, Play, Users, Star, Scan, Globe, Lock, Sparkles, ChevronDown, Wifi, User, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState, useRef, useMemo } from 'react';
+import { useT } from '@/lib/i18n';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 const Landing = () => {
-  const {
-    user
-  } = useAuth();
+  const { user } = useAuth();
+  const { t } = useT();
   const [scrollY, setScrollY] = useState(0);
   const [mousePosition, setMousePosition] = useState({
     x: 0,
@@ -31,71 +32,26 @@ const Landing = () => {
       window.removeEventListener('mousemove', handleMouseMove);
     };
   }, []);
-  const features = [{
-    icon: Warehouse,
-    title: "Gestione Dispense",
-    description: "Organizza i tuoi prodotti in più location con sincronizzazione real-time",
-    color: "from-primary/20 to-primary/5"
-  }, {
-    icon: Bell,
-    title: "Notifiche Intelligenti",
-    description: "Ricevi avvisi quando i prodotti scendono sotto la soglia impostata",
-    color: "from-warning/20 to-warning/5"
-  }, {
-    icon: BarChart3,
-    title: "Analytics Avanzate",
-    description: "Monitora consumi e trend con grafici interattivi e report dettagliati",
-    color: "from-success/20 to-success/5"
-  }, {
-    icon: ShoppingCart,
-    title: "Lista della Spesa",
-    description: "Genera automaticamente la lista della spesa basata sulle scorte",
-    color: "from-primary/20 to-primary/5"
-  }, {
-    icon: Smartphone,
-    title: "App Mobile",
-    description: "Accedi alle tue dispense ovunque con la nostra Progressive Web App",
-    color: "from-destructive/20 to-destructive/5"
-  }, {
-    icon: RefreshCw,
-    title: "Sync Automatico",
-    description: "I dispositivi IoT aggiornano l'inventario in tempo reale",
-    color: "from-success/20 to-success/5"
-  }];
-  const benefits = ["Zero sprechi alimentari", "Risparmio di tempo", "Gestione centralizzata", "Report automatici"];
-  const stats = [{
-    value: "10K+",
-    label: "Utenti Attivi",
-    suffix: ""
-  }, {
-    value: "500K+",
-    label: "Prodotti Tracciati",
-    suffix: ""
-  }, {
-    value: "30%",
-    label: "Risparmio Medio",
-    suffix: ""
-  }, {
-    value: "99.9%",
-    label: "Uptime",
-    suffix: ""
-  }];
-  const testimonials = [{
-    name: "Marco R.",
-    role: "Ristoratore",
-    text: "PantryOS ha rivoluzionato la gestione del mio magazzino. Risparmio ore ogni settimana!",
-    avatar: "M"
-  }, {
-    name: "Laura B.",
-    role: "Famiglia",
-    text: "Finalmente non butto più cibo scaduto. Le notifiche sono perfette!",
-    avatar: "L"
-  }, {
-    name: "Giovanni T.",
-    role: "Hotel Manager",
-    text: "Gestire 50 dispense non è mai stato così semplice. Consiglio vivamente.",
-    avatar: "G"
-  }];
+  const features = [
+    { icon: Warehouse, title: t('landing.features.pantriesTitle'), description: t('landing.features.pantriesDesc'), color: 'from-primary/20 to-primary/5' },
+    { icon: Bell, title: t('landing.features.notifTitle'), description: t('landing.features.notifDesc'), color: 'from-warning/20 to-warning/5' },
+    { icon: BarChart3, title: t('landing.features.analyticsTitle'), description: t('landing.features.analyticsDesc'), color: 'from-success/20 to-success/5' },
+    { icon: ShoppingCart, title: t('landing.features.listTitle'), description: t('landing.features.listDesc'), color: 'from-primary/20 to-primary/5' },
+    { icon: Smartphone, title: t('landing.features.mobileTitle'), description: t('landing.features.mobileDesc'), color: 'from-destructive/20 to-destructive/5' },
+    { icon: RefreshCw, title: t('landing.features.syncTitle'), description: t('landing.features.syncDesc'), color: 'from-success/20 to-success/5' },
+  ];
+  const benefits = [t('landing.benefits.zeroWaste'), t('landing.benefits.timeSaving'), t('landing.benefits.centralized'), t('landing.benefits.autoReports')];
+  const stats = [
+    { value: '10K+', label: t('landing.stats.users') },
+    { value: '500K+', label: t('landing.stats.products') },
+    { value: '30%', label: t('landing.stats.savings') },
+    { value: '99.9%', label: t('landing.stats.uptime') },
+  ];
+  const testimonials = [
+    { name: 'Marco R.', role: t('landing.testimonials.marco.role'), text: t('landing.testimonials.marco.text'), avatar: 'M' },
+    { name: 'Laura B.', role: t('landing.testimonials.laura.role'), text: t('landing.testimonials.laura.text'), avatar: 'L' },
+    { name: 'Giovanni T.', role: t('landing.testimonials.giovanni.role'), text: t('landing.testimonials.giovanni.text'), avatar: 'G' },
+  ];
   const year = new Date().getFullYear();
   const particles = useMemo(() => {
     return [...Array(20)].map((_, i) => ({
