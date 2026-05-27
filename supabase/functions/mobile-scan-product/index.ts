@@ -133,8 +133,16 @@ Deno.serve(async (req) => {
       return json({ error: "Dispensa non trovata" }, 404);
     const dispensa = dispensaRes.data;
 
-    // 3. Verifica Permessi (Ottimizzata)
-    if (dispensa.user_id !== user.id && dispensa.group_id) {
+    // 3. Verifica Permessi (Corretta e Ottimizzata)
+    const isOwner = dispensa.user_id === user.id;
+
+    if (!isOwner) {
+      if (!dispensa.group_id) {
+        // Non è il proprietario e non è una dispensa di gruppo -> Blocca subito
+        return json({ error: "Permesso negato: Dispensa privata" }, 403);
+      }
+
+      // Se è una dispensa di gruppo, verifichiamo l'appartenenza dell'utente corrente
       const { data: membership } = await admin
         .from("group_members")
         .select("role, accepted_at")
@@ -142,10 +150,23 @@ Deno.serve(async (req) => {
         .eq("user_id", user.id)
         .maybeSingle();
 
-      const isAllowed = !!(
-        membership?.accepted_at && ["editor", "admin"].includes(membership.role)
-      );
-      if (!isAllowed) return json({ error: "Permesso negato" }, 403);
+      // Permetti l'accesso se l'invito è accettato e il ruolo è autorizzato a modificare.
+      // NOTA: Assicurati che "editor" e "admin" combacino esattamente con i ruoli nel tuo DB.
+      // Se i membri semplici si chiamano "member", aggiungilo all'array qui sotto.
+      const hasValidRole =
+        membership?.role &&
+        ["member", "editor", "admin"].includes(membership.role);
+      const isAllowedGroupMember = !!(membership?.accepted_at && hasValidRole);
+
+      if (!isAllowedGroupMember) {
+        return json(
+          {
+            error:
+              "Permesso negato: Non hai i permessi di scrittura in questo gruppo",
+          },
+          403,
+        );
+      }
     }
 
     let productId: string;
