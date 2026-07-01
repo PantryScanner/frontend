@@ -1,6 +1,7 @@
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Warehouse,
   Check,
@@ -8,6 +9,7 @@ import {
   Star,
   Zap,
   HelpCircle,
+  Loader2,
 } from "lucide-react";
 import {
   Accordion,
@@ -15,93 +17,106 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { supabase } from "@/integrations/backend/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useSubscription, type Plan, type Feature, type PlanLimit } from "@/contexts/SubscriptionContext";
+import { toast } from "sonner";
+
+const LIMIT_LABELS: Record<string, string> = {
+  max_dispense: "Dispense",
+  max_prodotti: "Prodotti",
+  max_scanner: "Scanner",
+  max_membri_gruppo: "Membri gruppo",
+};
+
+const formatPrice = (cents: number) => {
+  if (cents === 0) return "€0";
+  return `€${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
+};
+
+const formatLimitValue = (value: number | null) =>
+  value === null ? "∞" : String(value);
 
 const Pricing = () => {
-  const plans = [
-    {
-      id: "free",
-      name: "Free",
-      price: "€0",
-      period: "/mese",
-      description: "Perfetto per iniziare",
-      popular: false,
-      features: [
-        "1 dispensa",
-        "50 prodotti",
-        "1 scanner",
-        "Notifiche base",
-        "App mobile",
-        "Supporto community",
-      ],
-      limitations: [
-        "Nessun analytics avanzato",
-        "Nessuna integrazione",
-      ],
-      cta: "Inizia gratis",
-      ctaVariant: "outline" as const,
-    },
-    {
-      id: "pro",
-      name: "Pro",
-      price: "€9",
-      period: "/mese",
-      description: "Per la casa moderna",
-      popular: true,
-      features: [
-        "10 dispense",
-        "Prodotti illimitati",
-        "5 scanner",
-        "Notifiche avanzate",
-        "Analytics completi",
-        "Liste della spesa automatiche",
-        "Export dati",
-        "Supporto email prioritario",
-      ],
-      limitations: [],
-      cta: "Prova gratis 14 giorni",
-      ctaVariant: "default" as const,
-    },
-    {
-      id: "business",
-      name: "Business",
-      price: "€29",
-      period: "/mese",
-      description: "Per attività commerciali",
-      popular: false,
-      features: [
-        "Dispense illimitate",
-        "Prodotti illimitati",
-        "Scanner illimitati",
-        "Multi-utente (team)",
-        "API access",
-        "Integrazioni personalizzate",
-        "Report avanzati",
-        "Onboarding dedicato",
-        "Supporto prioritario 24/7",
-        "SLA garantito",
-      ],
-      limitations: [],
-      cta: "Contattaci",
-      ctaVariant: "outline" as const,
-    },
-  ];
+  const { user } = useAuth();
+  const { plan: currentPlan } = useSubscription();
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [features, setFeatures] = useState<Feature[]>([]);
+  const [limits, setLimits] = useState<PlanLimit[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly");
+  const [checkoutLoadingPlanId, setCheckoutLoadingPlanId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      const [{ data: plansData }, { data: featuresData }, { data: limitsData }] =
+        await Promise.all([
+          supabase.from("plans").select("*").eq("is_active", true).order("tier"),
+          supabase.from("features").select("*").order("min_tier"),
+          supabase.from("plan_limits").select("*"),
+        ]);
+      setPlans(plansData ?? []);
+      setFeatures(featuresData ?? []);
+      setLimits(limitsData ?? []);
+      setIsLoading(false);
+    };
+    load();
+  }, []);
+
+  const featuresForPlan = useMemo(
+    () => (plan: Plan) => features.filter((f) => f.min_tier <= plan.tier),
+    [features],
+  );
+
+  const limitsForPlan = useMemo(
+    () => (plan: Plan) => limits.filter((l) => l.plan_id === plan.id),
+    [limits],
+  );
+
+  const handleUpgrade = async (plan: Plan) => {
+    if (!user) return;
+
+    const priceId =
+      billingInterval === "yearly" ? plan.stripe_price_id_yearly : plan.stripe_price_id_monthly;
+
+    if (!priceId) {
+      toast.info("Questo piano non è ancora collegato a un metodo di pagamento. Contattaci per l'attivazione.");
+      return;
+    }
+
+    setCheckoutLoadingPlanId(plan.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-create-checkout", {
+        body: { plan_id: plan.id, billing_interval: billingInterval },
+      });
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Non è stato possibile avviare il pagamento. Riprova più tardi.");
+    } finally {
+      setCheckoutLoadingPlanId(null);
+    }
+  };
 
   const faqs = [
     {
       question: "Posso cambiare piano in qualsiasi momento?",
-      answer: "Sì, puoi fare upgrade o downgrade del tuo piano in qualsiasi momento. Se fai upgrade, pagherai la differenza pro-rata. Se fai downgrade, il credito verrà applicato al prossimo ciclo di fatturazione.",
+      answer: "Sì, puoi fare upgrade o downgrade del tuo piano in qualsiasi momento dalla pagina di gestione abbonamento.",
     },
     {
       question: "C'è un contratto a lungo termine?",
-      answer: "No, tutti i nostri piani sono mensili e puoi cancellare in qualsiasi momento. Non ci sono costi nascosti o penali di cancellazione.",
+      answer: "No, tutti i nostri piani sono senza vincoli e puoi cancellare in qualsiasi momento dal portale di gestione abbonamento.",
     },
     {
       question: "Ho bisogno di comprare uno scanner?",
-      answer: "No, puoi usare PantryOS anche senza scanner dedicato. Puoi inserire i prodotti manualmente o usare la fotocamera del tuo smartphone. Gli scanner sono opzionali ma rendono il processo molto più veloce.",
+      answer: "No, puoi usare PantryOS anche senza scanner dedicato. Puoi inserire i prodotti manualmente o usare la fotocamera del tuo smartphone.",
     },
     {
       question: "I miei dati sono al sicuro?",
-      answer: "Assolutamente. Usiamo crittografia end-to-end e i tuoi dati sono memorizzati su server sicuri in Europa. Non vendiamo mai i tuoi dati a terzi.",
+      answer: "Assolutamente. Usiamo crittografia end-to-end e i tuoi dati sono memorizzati su server sicuri in Europa.",
     },
     {
       question: "Cosa succede se supero i limiti del piano Free?",
@@ -109,20 +124,8 @@ const Pricing = () => {
     },
     {
       question: "Offrite sconti per pagamento annuale?",
-      answer: "Sì! Con il pagamento annuale risparmi il 20%. Il piano Pro annuale costa €86/anno invece di €108, e il Business €278/anno invece di €348.",
+      answer: "Sì! Il pagamento annuale è scontato rispetto a 12 mensilità: il risparmio esatto è indicato su ciascun piano.",
     },
-  ];
-
-  const comparison = [
-    { feature: "Dispense", free: "1", pro: "10", business: "∞" },
-    { feature: "Prodotti", free: "50", pro: "∞", business: "∞" },
-    { feature: "Scanner", free: "1", pro: "5", business: "∞" },
-    { feature: "Utenti", free: "1", pro: "1", business: "Team" },
-    { feature: "Analytics", free: "Base", pro: "Avanzati", business: "Custom" },
-    { feature: "Notifiche", free: "Email", pro: "Email + Push", business: "Tutti i canali" },
-    { feature: "Export", free: "—", pro: "✓", business: "✓" },
-    { feature: "API", free: "—", pro: "—", business: "✓" },
-    { feature: "Supporto", free: "Community", pro: "Email", business: "24/7" },
   ];
 
   return (
@@ -152,7 +155,7 @@ const Pricing = () => {
       </nav>
 
       {/* Hero */}
-      <section className="pt-32 pb-20 px-6">
+      <section className="pt-32 pb-12 px-6">
         <div className="container mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 text-sm font-medium text-primary mb-6 animate-fade-in">
             <Zap className="h-4 w-4" />
@@ -163,105 +166,179 @@ const Pricing = () => {
             <span className="text-primary block mt-2">per le tue esigenze</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: "0.2s" }}>
-            Inizia gratis e scala quando cresci. Nessun costo nascosto, 
+            Inizia gratis e scala quando cresci. Nessun costo nascosto,
             cancellazione in qualsiasi momento.
           </p>
+
+          <div className="flex items-center justify-center gap-3 mt-8">
+            <span className={billingInterval === "monthly" ? "font-medium" : "text-muted-foreground"}>Mensile</span>
+            <Switch
+              checked={billingInterval === "yearly"}
+              onCheckedChange={(checked) => setBillingInterval(checked ? "yearly" : "monthly")}
+            />
+            <span className={billingInterval === "yearly" ? "font-medium" : "text-muted-foreground"}>Annuale</span>
+          </div>
         </div>
       </section>
 
       {/* Pricing Cards */}
       <section className="pb-24 px-6">
         <div className="container mx-auto">
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {plans.map((plan, index) => (
-              <div
-                key={plan.id}
-                className={`relative bg-card border rounded-2xl overflow-hidden hover:shadow-glow transition-all duration-300 animate-fade-in ${
-                  plan.popular ? "border-primary ring-2 ring-primary/20 scale-105" : ""
-                }`}
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                {plan.popular && (
-                  <div className="absolute top-0 left-0 right-0 bg-primary text-primary-foreground text-center py-1 text-sm font-medium">
-                    <Star className="h-3 w-3 inline mr-1" />
-                    Più popolare
-                  </div>
-                )}
+          {isLoading ? (
+            <div className="flex justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              {plans.map((plan, index) => {
+                const isPopular = plan.sort_order === 1;
+                const isCurrent = currentPlan?.id === plan.id;
+                const priceCents = billingInterval === "yearly" ? plan.price_yearly_cents : plan.price_monthly_cents;
+                const period = billingInterval === "yearly" ? "/anno" : "/mese";
+                const planFeatures = featuresForPlan(plan);
+                const planLimitsList = limitsForPlan(plan);
 
-                <div className={`p-6 ${plan.popular ? "pt-10" : ""}`}>
-                  <h3 className="text-xl font-bold mb-1">{plan.name}</h3>
-                  <p className="text-sm text-muted-foreground mb-4">{plan.description}</p>
-
-                  <div className="mb-6">
-                    <span className="text-5xl font-bold">{plan.price}</span>
-                    <span className="text-muted-foreground">{plan.period}</span>
-                  </div>
-
-                  <Button
-                    className="w-full mb-6"
-                    variant={plan.ctaVariant}
+                return (
+                  <div
+                    key={plan.id}
+                    className={`relative bg-card border rounded-2xl overflow-hidden hover:shadow-glow transition-all duration-300 animate-fade-in ${
+                      isPopular ? "border-primary ring-2 ring-primary/20 scale-105" : ""
+                    }`}
+                    style={{ animationDelay: `${index * 0.1}s` }}
                   >
-                    {plan.cta}
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
+                    {isPopular && (
+                      <div className="absolute top-0 left-0 right-0 bg-primary text-primary-foreground text-center py-1 text-sm font-medium">
+                        <Star className="h-3 w-3 inline mr-1" />
+                        Più popolare
+                      </div>
+                    )}
 
-                  <ul className="space-y-3">
-                    {plan.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-sm">
-                        <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                    {plan.limitations.map((limitation, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-sm text-muted-foreground">
-                        <span className="h-4 w-4 shrink-0 mt-0.5 text-center">—</span>
-                        <span>{limitation}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            ))}
-          </div>
+                    <div className={`p-6 ${isPopular ? "pt-10" : ""}`}>
+                      <h3 className="text-xl font-bold mb-1">{plan.name}</h3>
+                      <p className="text-sm text-muted-foreground mb-4">{plan.description}</p>
+
+                      <div className="mb-6">
+                        <span className="text-5xl font-bold">{formatPrice(priceCents)}</span>
+                        <span className="text-muted-foreground">{period}</span>
+                      </div>
+
+                      {isCurrent ? (
+                        <Button className="w-full mb-6" variant="outline" disabled>
+                          Il tuo piano attuale
+                        </Button>
+                      ) : !user ? (
+                        <Link to="/auth">
+                          <Button className="w-full mb-6" variant={isPopular ? "default" : "outline"}>
+                            {plan.tier === 0 ? "Inizia gratis" : "Registrati per iniziare"}
+                            <ArrowRight className="h-4 w-4 ml-2" />
+                          </Button>
+                        </Link>
+                      ) : plan.tier === 0 ? (
+                        <Button className="w-full mb-6" variant="outline" disabled>
+                          Piano gratuito
+                        </Button>
+                      ) : (
+                        <Button
+                          className="w-full mb-6"
+                          variant={isPopular ? "default" : "outline"}
+                          disabled={checkoutLoadingPlanId === plan.id}
+                          onClick={() => handleUpgrade(plan)}
+                        >
+                          {checkoutLoadingPlanId === plan.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              Passa a {plan.name}
+                              <ArrowRight className="h-4 w-4 ml-2" />
+                            </>
+                          )}
+                        </Button>
+                      )}
+
+                      <ul className="space-y-3">
+                        {planLimitsList.map((limit) => (
+                          <li key={limit.id} className="flex items-start gap-2 text-sm">
+                            <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                            <span>
+                              {formatLimitValue(limit.limit_value)} {LIMIT_LABELS[limit.limit_key] ?? limit.limit_key}
+                            </span>
+                          </li>
+                        ))}
+                        {planFeatures.map((feature) => (
+                          <li key={feature.id} className="flex items-start gap-2 text-sm">
+                            <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                            <span>{feature.name}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
       {/* Comparison Table */}
-      <section className="py-24 bg-muted/30 px-6">
-        <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Confronta i piani</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Una panoramica completa delle funzionalità disponibili
-            </p>
-          </div>
+      {!isLoading && (
+        <section className="py-24 bg-muted/30 px-6">
+          <div className="container mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-bold mb-4">Confronta i piani</h2>
+              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+                Una panoramica completa delle funzionalità disponibili
+              </p>
+            </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full max-w-4xl mx-auto">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-4 px-4 font-medium">Funzionalità</th>
-                  <th className="text-center py-4 px-4 font-medium">Free</th>
-                  <th className="text-center py-4 px-4 font-medium">
-                    <span className="text-primary">Pro</span>
-                  </th>
-                  <th className="text-center py-4 px-4 font-medium">Business</th>
-                </tr>
-              </thead>
-              <tbody>
-                {comparison.map((row, index) => (
-                  <tr key={index} className="border-b">
-                    <td className="py-4 px-4">{row.feature}</td>
-                    <td className="py-4 px-4 text-center text-muted-foreground">{row.free}</td>
-                    <td className="py-4 px-4 text-center font-medium">{row.pro}</td>
-                    <td className="py-4 px-4 text-center text-muted-foreground">{row.business}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full max-w-4xl mx-auto">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-4 px-4 font-medium">Funzionalità</th>
+                    {plans.map((plan) => (
+                      <th key={plan.id} className="text-center py-4 px-4 font-medium">
+                        <span className={plan.sort_order === 1 ? "text-primary" : ""}>{plan.name}</span>
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {Object.entries(LIMIT_LABELS).map(([limitKey, label]) => (
+                    <tr key={limitKey} className="border-b">
+                      <td className="py-4 px-4">{label}</td>
+                      {plans.map((plan) => {
+                        const limit = limits.find(
+                          (l) => l.plan_id === plan.id && l.limit_key === limitKey,
+                        );
+                        return (
+                          <td key={plan.id} className="py-4 px-4 text-center text-muted-foreground">
+                            {limit ? formatLimitValue(limit.limit_value) : "—"}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                  {features.map((feature) => (
+                    <tr key={feature.id} className="border-b">
+                      <td className="py-4 px-4">{feature.name}</td>
+                      {plans.map((plan) => (
+                        <td key={plan.id} className="py-4 px-4 text-center">
+                          {plan.tier >= feature.min_tier ? (
+                            <Check className="h-4 w-4 text-primary inline" />
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* FAQ */}
       <section className="py-24 px-6">

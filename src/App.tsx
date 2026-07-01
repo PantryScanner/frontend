@@ -8,8 +8,11 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { TutorialProvider } from "@/contexts/TutorialContext";
 import { ActiveGroupProvider, useActiveGroup } from "@/contexts/ActiveGroupContext";
+import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { LanguageProvider } from "@/lib/i18n";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminRoute } from "@/components/AdminRoute";
+import { PlanRoute } from "@/components/PlanRoute";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AppHeader } from "@/components/AppHeader";
 import { TutorialOverlay } from "@/components/TutorialOverlay";
@@ -31,6 +34,8 @@ import Pricing from "./pages/Pricing";
 import Profile from "./pages/Profile";
 import Groups from "./pages/Groups";
 import Scan from "./pages/Scan";
+import SubscriptionManagement from "./pages/SubscriptionManagement";
+import AdminPanel from "./pages/admin/AdminPanel";
 import BlogHome from "./pages/blog/BlogHome";
 import BlogPost from "./pages/blog/BlogPost";
 import BlogCategory from "./pages/blog/BlogCategory";
@@ -73,6 +78,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <LanguageProvider>
     <AuthProvider>
+      <SubscriptionProvider>
       <NotificationProvider>
         <TutorialProvider>
           <ActiveGroupProvider>
@@ -98,10 +104,12 @@ const App = () => (
                   <Route path="/dispense" element={<ProtectedRoute><AppLayout><Dispense /></AppLayout></ProtectedRoute>} />
                   <Route path="/dispense/:id" element={<ProtectedRoute><AppLayout><DispensaDetail /></AppLayout></ProtectedRoute>} />
                   <Route path="/dispositivi" element={<ProtectedRoute><AppLayout><Dispositivi /></AppLayout></ProtectedRoute>} />
-                  <Route path="/grafici" element={<ProtectedRoute><AppLayout><Grafici /></AppLayout></ProtectedRoute>} />
+                  <Route path="/grafici" element={<ProtectedRoute><PlanRoute feature="analytics_avanzati"><AppLayout><Grafici /></AppLayout></PlanRoute></ProtectedRoute>} />
                   <Route path="/profilo" element={<ProtectedRoute><AppLayout><Profile /></AppLayout></ProtectedRoute>} />
                   <Route path="/gruppi" element={<ProtectedRoute><AppLayout><Groups /></AppLayout></ProtectedRoute>} />
                   <Route path="/scan" element={<ProtectedRoute><AppLayout><Scan /></AppLayout></ProtectedRoute>} />
+                  <Route path="/abbonamento" element={<ProtectedRoute><AppLayout><SubscriptionManagement /></AppLayout></ProtectedRoute>} />
+                  <Route path="/admin" element={<ProtectedRoute><AdminRoute><AppLayout><AdminPanel /></AppLayout></AdminRoute></ProtectedRoute>} />
                   <Route path="/blog" element={<BlogHome />} />
                   <Route path="/blog/cerca" element={<BlogSearch />} />
                   <Route path="/blog/tags" element={<BlogTagsIndex />} />
@@ -115,6 +123,7 @@ const App = () => (
           </ActiveGroupProvider>
         </TutorialProvider>
       </NotificationProvider>
+      </SubscriptionProvider>
     </AuthProvider>
     </LanguageProvider>
   </QueryClientProvider>

@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/backend/client";
 import { useAuth } from '@/contexts/AuthContext';
 import { useActiveGroup } from '@/contexts/ActiveGroupContext';
 import { useToast } from '@/hooks/use-toast';
+import { useLimit } from '@/hooks/useFeature';
 
 interface AddDispensaDialogProps {
   onDispensaAdded: () => void;
@@ -36,10 +37,11 @@ export const AddDispensaDialog = ({ onDispensaAdded }: AddDispensaDialogProps) =
   const { user } = useAuth();
   const { activeGroup } = useActiveGroup();
   const { toast } = useToast();
+  const maxDispense = useLimit('max_dispense');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!name.trim()) {
       toast({
         variant: 'destructive',
@@ -70,6 +72,23 @@ export const AddDispensaDialog = ({ onDispensaAdded }: AddDispensaDialogProps) =
     setIsLoading(true);
 
     try {
+      if (maxDispense !== null) {
+        const { count } = await supabase
+          .from('dispense')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+
+        if ((count ?? 0) >= maxDispense) {
+          toast({
+            variant: 'destructive',
+            title: 'Limite del piano raggiunto',
+            description: `Il tuo piano consente al massimo ${maxDispense} dispense. Fai upgrade per aggiungerne altre.`,
+          });
+          setIsLoading(false);
+          return;
+        }
+      }
+
       const { error } = await supabase.from('dispense').insert({
         name: name.trim(),
         location: location.trim() || null,
