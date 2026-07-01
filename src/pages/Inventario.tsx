@@ -42,6 +42,7 @@ import * as XLSX from "xlsx";
 import { ProductCardGrid } from "@/components/ProductCardGrid";
 import { ScannerFab } from "@/components/ScannerFab";
 import { ExportInventoryDialog } from "@/components/ExportInventoryDialog";
+import { useFeature } from "@/hooks/useFeature";
 
 type ColumnKey = "select" | "image" | "name" | "brand" | "barcode" | "category" | "dispensa" | "quantity" | "expiry" | "date" | "origin" | "nutriscore" | "ecoscore" | "nova" | "actions";
 
@@ -288,7 +289,9 @@ const Inventario = () => {
             </DialogContent>
           </Dialog>
 
-          <ExportInventoryDialog products={products} dispense={dispense} groupName={activeGroup?.name} />
+          {useFeature("export_dati") && (
+            <ExportInventoryDialog products={products} dispense={dispense} groupName={activeGroup?.name} />
+          )}
 
           {/* Import Wizard Dialog */}
           <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>

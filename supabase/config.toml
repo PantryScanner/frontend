@@ -2,3 +2,9 @@ project_id = "bsrmtxtjnhjurchjkruc"
 
 [functions.scanner-add-product]
 verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.admin-assign-plan]
+verify_jwt = false

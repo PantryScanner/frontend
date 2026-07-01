@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Package, Warehouse, Cpu, BarChart3, HelpCircle, LogOut, User, Users, ScanLine, BookOpen } from "lucide-react";
+import { LayoutDashboard, Package, Warehouse, Cpu, BarChart3, HelpCircle, LogOut, User, Users, ScanLine, BookOpen, CreditCard, ShieldCheck } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter, useSidebar } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { useTutorialContext } from "@/contexts/TutorialContext";
 import { Link } from "react-router-dom";
 import { useT } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { supabase } from "@/integrations/backend/client";
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -15,6 +17,15 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { t } = useT();
   const isCollapsed = state === "collapsed";
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setIsAdmin(false);
+      return;
+    }
+    supabase.rpc("is_admin", { uid: user.id }).then(({ data }) => setIsAdmin(Boolean(data)));
+  }, [user]);
 
   const menuItems = [
     { title: t("sidebar.dashboard"), url: "/dashboard", icon: LayoutDashboard },
@@ -25,6 +36,8 @@ export function AppSidebar() {
     { title: t("sidebar.charts"), url: "/grafici", icon: BarChart3 },
     { title: t("sidebar.groups"), url: "/gruppi", icon: Users },
     { title: t("sidebar.blog"), url: "/blog", icon: BookOpen },
+    { title: "Abbonamento", url: "/abbonamento", icon: CreditCard },
+    ...(isAdmin ? [{ title: "Admin", url: "/admin", icon: ShieldCheck }] : []),
   ];
 
   const handleLogout = async () => {
